@@ -19,26 +19,6 @@
      (* (euclidean-norm d1)
         (euclidean-norm d2))))
 
-;; walking directory trees
-(defn as-file [s]
-  (cond (instance? File s) s
-        (string? s) (File. s)
-        :else (throw (FileNotFoundException. (str s)))))
-
-(defn walk [^File dir]
-  (let [children (.listFiles dir)
-        subdirs  (filter #(.isDirectory %) children)
-        files    (filter #(.isFile %) children)]
-    (do (printf "Walking %s: %d dirents\n" dir (count children))
-        (concat files (mapcat walk subdirs)))))
-
-(defn find-all-mp3s [args]
-  (let [all-files       (mapcat (fn [x] (walk (File. x))) args)
-        deduped-files   (set all-files)
-        all-file-names  (map (fn [x] (.getAbsolutePath x)) deduped-files)
-        mp3-files       (filter (fn [x] (.endsWith x ".mp3")) all-file-names)]
-    mp3-files))
-
 (defn get-mp3-sample-data [mp3-file]
   (let [file-object      (File. mp3-file)
         audio-in         (AudioSystem/getAudioInputStream file-object)
