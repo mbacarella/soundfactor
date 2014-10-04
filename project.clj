@@ -6,4 +6,8 @@
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [org.clojars.technomancy/jlayer "1.0"]
                  [org.clojars.automata/tritonus-share "1.0.0"]
-                 [org.clojars.automata/mp3spi "1.9.4"]])
+                 [org.clojars.automata/mp3spi "1.9.4"]
+                 [net.mikera/vectorz-clj "0.17.0"]
+                 [net.mikera/vectorz "0.25.0"]
+                 [net.mikera/core.matrix "0.16.0"]
+                 ])
