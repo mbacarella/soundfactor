@@ -6,11 +6,7 @@
   (:import java.io.ByteArrayOutputStream)
   (:import java.nio.ByteBuffer)
   (:import [java.nio ByteOrder])
-  ;; (:import [javax.sound.sampled AudioSystem AudioFormat
-  ;;           AudioFormat$Encoding DataLine$Info SourceDataLine])
-  )
-
-(use '[clojure.java.shell :only [sh]])
+  (:use [clojure.java.shell]))
 
 ;; (defn euclidean-norm [v]
 ;;   (Math/sqrt (reduce + (map (fn [x] (Math/pow x 2)) v))))
@@ -90,38 +86,51 @@
 (defn get-mp3-sample-data-mono [mp3-file]
   "Return a short array of mp3 sample data"
   (let [mp3-decoder     "/usr/bin/mp3-decoder"
-        my-byte-array   (:out (sh mp3-decoder "-m" "-s" mp3-file :out-enc :bytes))
+        my-byte-array   (:out (clojure.java.shell/sh mp3-decoder "-m" "-s" mp3-file :out-enc :bytes))
         my-short-array  (short-array (/ (alength my-byte-array) 2))
         short-buffer    (.asShortBuffer (.order (ByteBuffer/wrap my-byte-array) ByteOrder/LITTLE_ENDIAN))]
     (do
       (.get short-buffer my-short-array)
       my-short-array)))
 
-(defn dominant-frequency [fft-result n]
-  (reduce (fn [[x-max i-max] [x i]]
-            (if (> x x-max) [x i] [x-max i-max]))
-          (map (fn [x i] [x i]) fft-result (range n))))
+(defn abs [n] (max n (- n)))
 
-(defn get-peak-frequencies-of-mp3 [mp3-file freqs-per-sec]
-  "Given an [mp3-file freqs-per-second], return a sequence of [seconds-from-start peak-frequency] values over the entire mp3"
-  (let [samples-per-second  44100 ; mp3-decoder guarantees this
-        bucket-size         (/ samples-per-second freqs-per-sec)
+(defn dominant-frequency [fft-result n]
+  (reduce (fn [[i-max x-max] [i x]]
+            (let [abs-x (abs x)]
+              (if (> abs-x x-max)
+                [i abs-x]
+                [i-max x-max])))
+          (map-indexed vector fft-result)))
+
+(def FREQUENCY-SAMPLES-PER-SECOND 30)
+
+(defn get-peak-frequencies-of-mp3 [mp3-file nps]
+  "Given an [mp3-file nps], return a sequence of [seconds-from-start peak-frequency] values over the entire mp3"
+  (let [samples-per-second  44100 ; mp3-decoder guarantees this?
+        bucket-size         (/ samples-per-second nps)
         mp3-raw-samples     (double-array (get-mp3-sample-data-mono mp3-file))
         num-mp3-raw-samples (alength mp3-raw-samples)
-        total-buckets       (/ num-mp3-raw-samples bucket-size)
-        fft                 (mikera.matrix.algo.FFT. bucket-size)
-        tarr                (double-array (* bucket-size n 2))]
+        total-buckets       (- (/ num-mp3-raw-samples bucket-size) 1) ; throw away the end bucket
+        fft                 (mikera.matrixx.algo.FFT. (int bucket-size))
+        tarr                (double-array (* bucket-size 2))]
     (map (fn [i-bucket]
            (do
              (System/arraycopy mp3-raw-samples (* i-bucket bucket-size) tarr 0 bucket-size)
              (.realForward fft tarr) ; magic
-             [(/ (* i-bucket bucket-size) samples-per-second) ; offset in seconds
-              (* (dominant-frequency tarr bucket-size) freqs-per-sec)]))
+             (let [offset-in-seconds  (/ (* i-bucket bucket-size) (float samples-per-second))
+                   [dom-freq _value]  (dominant-frequency tarr bucket-size)]
+               [offset-in-seconds (* dom-freq nps)])))
          (range total-buckets))))
 
-(defn go [mp3-filess]
-  (doseq [mp3-file mp3-filess]
-    (let [peak-frequencies (get-peak-frequencies-of-mp3 mp3-file)]
-      (print "%s: %s" mp3-file peak-frequencies))))
+(defn go [mp3-files]
+  (doseq [mp3-file mp3-files]
+    (let [peak-frequencies (get-peak-frequencies-of-mp3 mp3-file FREQUENCY-SAMPLES-PER-SECOND)
+          spectro-path     (str mp3-file ".spectrogram")]
+      (with-open [writer (clojure.java.io/writer spectro-path)]
+        (do
+          (.write writer "# time peak-frequency\n")
+          (doseq [[offset freq] peak-frequencies]
+            (.write writer (str offset " " freq "\n"))))))))
 
 (defn -main [& args] (go args))
