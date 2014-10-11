@@ -66,6 +66,12 @@
       (save-series time-dom "/tmp/mp3-wave.txt")
       (save-series freq-dom "/tmp/mp3-wave-fft.txt"))))
 
+(defn write-spectrogram-for-gnuplot [peak-frequencies spectro-path]
+  (with-open [writer (clojure.java.io/writer spectro-path)]
+    (.write writer "# time peak-frequency\n")
+    (doseq [[offset freq] peak-frequencies]
+      (.write writer (str offset " " freq "\n")))))
+
 ;; ;; gnuplot commands to render the above
 ;; reset
 ;; set title "sine wave"

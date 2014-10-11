@@ -6,7 +6,9 @@
   (:import java.io.ByteArrayOutputStream)
   (:import java.nio.ByteBuffer)
   (:import [java.nio ByteOrder])
-  (:use [clojure.java.shell]))
+  (:use [clojure.java.shell])
+  (:use [soundfactor.command :as command])
+)
 
 ;; (defn euclidean-norm [v]
 ;;   (Math/sqrt (reduce + (map (fn [x] (Math/pow x 2)) v))))
@@ -65,23 +67,8 @@
 ;;                     (catch Exception e (assoc results-map test-key [:err e]))))))
 ;;             results-map rest-mp3s)))
 
-;; (defn go [mp3s]
-;;   (if (empty? mp3s)
-;;     (printf "Usage: soundfactor <1.mp3> <2.mp3> [3.mp3] [...] [N.mp3\n")
-;;     (let [map-of-results
-;;       (loop [first-mp3   (first mp3s)
-;;              rest-mp3s   (rest mp3s)
-;;              results-map {}]
-;;         (if (empty? rest-mp3s)
-;;           results-map
-;;           (recur (first rest-mp3s)
-;;                  (rest  rest-mp3s)
-;;                  (compare-one-mp3-to-rest results-map first-mp3 rest-mp3s))))]
-;;       (doseq [[key [condition result]] map-of-results]
-;;         (if (= condition :err)
-;;           (printf "ERROR    %s\n" key)
-;;           (printf "%.8f     %s\n" result key))
-;;         (flush)))))
+(def samples-per-second 44100) ; mp3-decoder guarantees this?
+(def buckets-per-second 30)    ; how many buckets/sec to build a spectrogram over
 
 (defn get-mp3-sample-data-mono [mp3-file]
   "Return a short array of mp3 sample data"
@@ -103,12 +90,9 @@
                 [i-max x-max])))
           (map-indexed vector fft-result)))
 
-(def FREQUENCY-SAMPLES-PER-SECOND 30)
-
-(defn get-peak-frequencies-of-mp3 [mp3-file nps]
-  "Given an [mp3-file nps], return a sequence of [seconds-from-start peak-frequency] values over the entire mp3"
-  (let [samples-per-second  44100 ; mp3-decoder guarantees this?
-        bucket-size         (/ samples-per-second nps)
+(defn get-peak-frequencies-of-mp3 [mp3-file]
+  "Given an [mp3-file], return a sequence of [seconds-from-start peak-frequency] values over the entire mp3"
+  (let [bucket-size         (/ samples-per-second buckets-per-second)
         mp3-raw-samples     (double-array (get-mp3-sample-data-mono mp3-file))
         num-mp3-raw-samples (alength mp3-raw-samples)
         total-buckets       (- (/ num-mp3-raw-samples bucket-size) 1) ; throw away the end bucket
@@ -120,17 +104,36 @@
              (.realForward fft tarr) ; magic
              (let [offset-in-seconds  (/ (* i-bucket bucket-size) (float samples-per-second))
                    [dom-freq _value]  (dominant-frequency tarr bucket-size)]
-               [offset-in-seconds (* dom-freq nps)])))
+               [offset-in-seconds (* dom-freq buckets-per-second)])))
          (range total-buckets))))
 
-(defn go [mp3-files]
-  (doseq [mp3-file mp3-files]
-    (let [peak-frequencies (get-peak-frequencies-of-mp3 mp3-file FREQUENCY-SAMPLES-PER-SECOND)
-          spectro-path     (str mp3-file ".spectrogram")]
-      (with-open [writer (clojure.java.io/writer spectro-path)]
-        (do
-          (.write writer "# time peak-frequency\n")
-          (doseq [[offset freq] peak-frequencies]
-            (.write writer (str offset " " freq "\n"))))))))
+(defn gen-freq-offset-mp3-map [freq-offset-mp3-map peak-frequencies mp3-file]
+  "Turns a [offset freq] seq into a map of freq => [offset mp3] seq"
+  (reduce
+   (fn [freq-offset-mp3-map [offset peak-freq]]
+     (let [key         peak-freq
+           value       [offset mp3-file]]
+       (assoc freq-offset-mp3-map key (conj (or (freq-offset-mp3-map key) #{}) value))))
+   freq-offset-mp3-map
+   peak-frequencies))
 
-(defn -main [& args] (go args))
+(defn save-sexp [d f]
+  (with-open [w (clojure.java.io/writer f)]
+    (.write w (binding [*print-dup* true] (prn d)))))
+
+(defn go [mp3-files]
+  (reduce (fn [freq-offset-mp3-map mp3-file]
+            (gen-freq-offset-mp3-map freq-offset-mp3-map
+                                     (get-peak-frequencies-of-mp3 mp3-file)
+                                     mp3-file))
+          {}
+          mp3-files))
+
+(defn -main [& args] 
+  (let [cmd (command/basic :summary "enjoy music with more parts of your brain"
+                           :spec [ (command/flag "-verbose" command/no-arg :doc "share more inner monologue")]
+                           :main (fn [verbose]
+                                   (printf "command.basic test\n")
+                                   (printf "verbose: %s\n" verbose)
+                                   (flush)))]
+    (command/run cmd)))
