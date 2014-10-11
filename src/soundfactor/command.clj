@@ -1,4 +1,5 @@
-(ns soundfactor.command)
+(ns soundfactor.command
+  (:use [clojure.core.match :only (match)]))
 
 (defn get-summary [command-or-group]
   ((apply hash-map (second command-or-group)) :summary))
@@ -27,7 +28,7 @@
               (flush))
             :else (assert false "print-usage: did not get :command or :group"))))
 
-(defn bomb-out-with-usage-error [command-or-group breadcrumbs s] 
+(defn print-usage-error [command-or-group breadcrumbs s] 
   (print-usage command-or-group breadcrumbs)
   (printf "error: %s\n" s) ; TODO: stderr
   (flush)
@@ -46,13 +47,14 @@
               [(second argv-middle-and-after)
                (rest (rest argv-middle-and-after))])]
         [(concat args-for-main [value]) (concat argv-before argv-after)])
-      (let ; no, maybe it's optional?
-          [return-value (fn [value] [:ok [(concat args-for-main [value]) argv]])
-           (cond (= type-tag :required) [:usage-error (format "the '%s' flag is required" switch)]
-                 (= type-tag :optional) (return-value nil)
-                 (= type-tag :optional_with_default) (return-value (nth type-info 2))
-                 (= type-tag :no-arg) (return-value false)
-                 :else (assert false (str "process-flag: unknown type-tag: " type-tag)))]))))
+      ;; switch not found. maybe it's optional?
+      (let [return-value (fn [value] [:ok [(concat args-for-main [value]) argv]])]
+        (match type-tag
+               [:required] [:usage-error (format "the '%s' flag is required" switch)]
+               [:optional] (return-value nil)
+               [:optional_with_default] (return-value (nth type-info 2))
+               [:no-arg] (return-value false)
+               :else (assert false (str "process-flag: unknown type-tag: " type-tag)))))))
 
 (defn process-command [cmd argv breadcrumbs]
   (let [cmd-as-map (apply hash-map cmd)
@@ -64,17 +66,16 @@
           (reduce (fn [[args-for-main argv] spec]
                     (let [spec-as-map (apply hash-map spec)]
                       (cond (contains? spec-as-map :flag)
-                                (let [[result-tag result-info] (process-flag spec-as-map args-for-main argv)]
-                                  (cond (= result-tag :ok) result-info
-                                        (= result-tag :usage-error)
-                                            (bomb-out-with-usage-error [:command cmd] breadcrumbs result-info)))
+                              (match (process-flag spec-as-map args-for-main argv)
+                                     [:ok result] result
+                                     [:usage-error s] (print-usage-error [:command cmd] breadcrumbs s))
                             (contains? spec-as-map :anon)      [(concat args-for-main [(first argv)]) (rest argv)]
                             (contains? spec-as-map :anon-list) [(concat args-for-main argv) []]
                             :else (assert false (str "bad spec" spec))))) 
               [[] argv]
               spec-list)]
       (if (not (empty? argv-leftovers))
-        (bomb-out-with-usage-error (format "unexpected extra arguments: %s" argv))
+        (print-usage-error (format "unexpected extra arguments: %s" argv))
         (apply main args-for-main)))))
 
 (defn process-command-or-group [command-or-group argv breadcrumbs]
@@ -85,13 +86,13 @@
                 matches            (filter (fn [name _command-or-group] (.startsWith name subcommand-to-run)))
                 num-matches        (count matches)
                 usage-error        (fn [more-detail]
-                                     (bomb-out-with-usage-error command-or-group
-                                                                breadcrumbs
-                                                                (format "specified sub-command \"%s\" %s" 
-                                                                        subcommand-to-run 
-                                                                        more-detail)))]
-            ; TODO: assert no duplicated sub-command names
-            ; TODO: ensure subcommand-to-run isn't a command-line switch
+                                     (print-usage-error command-or-group
+                                                        breadcrumbs
+                                                        (format "specified sub-command \"%s\" %s" 
+                                                                subcommand-to-run 
+                                                                more-detail)))]
+                                        ; TODO: assert no duplicated sub-command names
+                                        ; TODO: ensure subcommand-to-run isn't a command-line switch
             (cond (= num-matches 1) (let [match (first matches)] 
                                       (process-command-or-group (second match)
                                                                 (rest argv)
