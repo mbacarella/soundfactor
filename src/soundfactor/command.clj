@@ -6,10 +6,11 @@
 
 (defn print-usage [command-or-group breadcrumbs]
   ; TODO: stderr
-  (let [tag (first command-or-group)]  
+  (let [tag (first command-or-group)]
+    (printf "%s\n" (get-summary command-or-group))
+    (printf "\n")
     (cond (= tag :command)
             (let [cmd-as-map (apply hash-map (second command-or-group))]
-              (printf "%s\n" (cmd-as-map :summary))
               (printf "  argv[0] %s <args>\n" (reverse breadcrumbs))
               (printf "\n")
               (printf "___ flags ___\n")
@@ -18,7 +19,6 @@
               (flush))
           (= tag :group) 
             (let [cmd-as-map (apply hash-map (second command-or-group))]
-              (printf "%s\n" (cmd-as-map :summary))
               (printf "  argv[0] %s\n" (reverse breadcrumbs))
               (printf "\n")
               (printf "___ subcommands ___\n\n")
@@ -35,47 +35,55 @@
   (System/exit 1))
 
 (defn process-flag [spec-as-map args-for-main argv]
-  (let [switch                (spec-as-map :flag)
-        argv-before           (take-while (fn [switch'] (not (= switch switch'))) argv)
-        argv-middle-and-after (drop (count argv-before) argv)
-        type-info             (spec-as-map :type)
-        type-tag              (first type-info)]
-    (if (= (first argv-middle-and-after) switch) ; was switch found?
-      (let [[value argv-after] ; yes! process it
-            (if (= type-tag :no-arg) 
-              [true (rest argv-middle-and-after)]
-              [(second argv-middle-and-after)
-               (rest (rest argv-middle-and-after))])]
-        [(concat args-for-main [value]) (concat argv-before argv-after)])
-      ;; switch not found. maybe it's optional?
-      (let [return-value (fn [value] [:ok [(concat args-for-main [value]) argv]])]
-        (match type-tag
-               [:required] [:usage-error (format "the '%s' flag is required" switch)]
-               [:optional] (return-value nil)
-               [:optional_with_default] (return-value (nth type-info 2))
-               [:no-arg] (return-value false)
-               :else (assert false (str "process-flag: unknown type-tag: " type-tag)))))))
+  (let [switch           (spec-as-map :flag)
+        partial-matches  (filter (fn [arg] (.startsWith switch arg)) argv)]
+    (if (> (count partial-matches) 1)
+      ;; we allow the user to specify less than the full name of the flag so long as it uniquely
+      ;; identifies the flag, so let's just make sure each flag matches once at most
+      ;; it's true, this seems N^2, but if your program accepts 10,000 flag arguments you probably suck
+      [:usage-error (format "multiple matches for flag '%s': %s" switch (apply str partial-matches))]
+      (let [argv-before           (take-while (fn [arg] (not (.startsWith switch arg))) argv)
+            argv-middle-and-after (drop (count argv-before) argv)
+            type-info             (spec-as-map :type)
+            type-tag              (first type-info)
+            return-ok             (fn [x] [:ok x])]
+        (if (.startsWith switch (first argv-middle-and-after)) ; was switch found?
+          (let [[value argv-after] ; yes! process it
+                (if (= type-tag :no-arg) 
+                  [true (rest argv-middle-and-after)]
+                  [(second argv-middle-and-after)
+                   (rest (rest argv-middle-and-after))])]
+            (return-ok [(concat args-for-main [value]) 
+                        (concat argv-before argv-after)]))
+          ;; switch not found. maybe it's optional?
+          (let [return-value (fn [value] (return-ok [(concat args-for-main [value])] argv))]
+            (match [type-tag]
+                   [:required] [:usage-error (format "the '%s' flag is required" switch)]
+                   [:optional] (return-value nil)
+                   [:optional_with_default] (return-value (nth type-info 2))
+                   [:no-arg] (return-value false)
+                   :else (assert false (str "process-flag: unknown type-tag: " type-tag))))))))) 
 
 (defn process-command [cmd argv breadcrumbs]
-  (let [cmd-as-map (apply hash-map cmd)
+  (let [cmd-wrap   [:command cmd] ; un-destructure this, for passing
+        cmd-as-map (apply hash-map cmd)
         spec-list  (cmd-as-map :spec)
         main       (cmd-as-map :main)]
     ; TODO: assert no duplicate switches in spec
-    ; TODO: implement 
     (let [[args-for-main argv-leftovers] 
           (reduce (fn [[args-for-main argv] spec]
                     (let [spec-as-map (apply hash-map spec)]
                       (cond (contains? spec-as-map :flag)
-                              (match (process-flag spec-as-map args-for-main argv)
-                                     [:ok result] result
-                                     [:usage-error s] (print-usage-error [:command cmd] breadcrumbs s))
+                            (match (process-flag spec-as-map args-for-main argv)
+                                   [:ok result] result
+                                   [:usage-error s] (print-usage-error cmd-wrap breadcrumbs s))
                             (contains? spec-as-map :anon)      [(concat args-for-main [(first argv)]) (rest argv)]
                             (contains? spec-as-map :anon-list) [(concat args-for-main argv) []]
                             :else (assert false (str "bad spec" spec))))) 
-              [[] argv]
-              spec-list)]
+                  [[] argv]
+                  spec-list)]
       (if (not (empty? argv-leftovers))
-        (print-usage-error (format "unexpected extra arguments: %s" argv))
+        (print-usage-error cmd-wrap breadcrumbs (format "too many anonymous arguments: %s" argv))
         (apply main args-for-main)))))
 
 (defn process-command-or-group [command-or-group argv breadcrumbs]
