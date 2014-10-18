@@ -8,6 +8,7 @@
   (:import [java.nio ByteOrder])
   (:use [clojure.java.shell])
   (:use [soundfactor.command :as command])
+  (:use [soundfactor.gnuplot :as gnuplot])
 )
 
 ;; (defn euclidean-norm [v]
@@ -20,40 +21,6 @@
 ;;      (* (euclidean-norm d1)
 ;;         (euclidean-norm d2))))
 
-;; (defn get-mp3-sample-data-native [mp3-file] 
-;;   (try
-;;     (let [file-object      (File. mp3-file)
-;;           audio-in         (AudioSystem/getAudioInputStream file-object)
-;;           base-format      (.getFormat audio-in)
-;;           decoded-format   (let [channels    (.getChannels base-format)
-;;                                  sample-rate (.getSampleRate base-format)]
-;;                              (AudioFormat. AudioFormat$Encoding/PCM_SIGNED  ; encoding
-;;                                            sample-rate    ; sample rate of base format 
-;;                                            16             ; sample size in bits
-;;                                            channels
-;;                                            (* channels 2) ; frame size
-;;                                            sample-rate    ; frame rate
-;;                                            false          ; big endian
-;;                                            ))
-;;           line-info        (DataLine$Info. SourceDataLine decoded-format)
-;;           decoded-stream   (AudioSystem/getAudioInputStream decoded-format audio-in)
-;;           read-buffer      (byte-array 8192)
-;;           ba-output-stream (ByteArrayOutputStream.)
-;;           moar-data        (fn [] (.read decoded-stream read-buffer))]
-;;       (loop [num-bytes (moar-data)]
-;;         (if (> num-bytes 0)
-;;           (do (.write ba-output-stream read-buffer 0 num-bytes)
-;;               (recur (moar-data)))
-;;           (let [total-bytes    (.size ba-output-stream)
-;;                 num-samples    (/ total-bytes 2)
-;;                 byte-buffer    (ByteBuffer/wrap (.toByteArray ba-output-stream) 0 total-bytes)
-;;                 short-buffer   (.asShortBuffer byte-buffer)
-;;                 my-short-array (short-array num-samples)]
-;;             (do (.get short-buffer my-short-array 0 num-samples)
-;;                 (.close decoded-stream)
-;;                 (.close audio-in)
-;;                 my-short-array)))))
-;;     (catch Exception _e nil)))
 
 ;; (defn compare-one-mp3-to-rest [results-map first-mp3 rest-mp3s]
 ;;   (let [first-mp3-data (get-mp3-sample-data first-mp3)]
@@ -69,26 +36,6 @@
 
 (def samples-per-second 44100) ; mp3-decoder guarantees this?
 (def buckets-per-second 30)    ; how many buckets/sec to build a spectrogram over
-
-(defn get-mp3-sample-data-mono [mp3-file]
-  "Return a short array of mp3 sample data"
-  (let [mp3-decoder     "/usr/bin/mp3-decoder"
-        my-byte-array   (:out (clojure.java.shell/sh mp3-decoder "-m" "-s" mp3-file :out-enc :bytes))
-        my-short-array  (short-array (/ (alength my-byte-array) 2))
-        short-buffer    (.asShortBuffer (.order (ByteBuffer/wrap my-byte-array) ByteOrder/LITTLE_ENDIAN))]
-    (do
-      (.get short-buffer my-short-array)
-      my-short-array)))
-
-(defn abs [n] (max n (- n)))
-
-(defn dominant-frequency [fft-result n]
-  (reduce (fn [[i-max x-max] [i x]]
-            (let [abs-x (abs x)]
-              (if (> abs-x x-max)
-                [i abs-x]
-                [i-max x-max])))
-          (map-indexed vector fft-result)))
 
 (defn get-peak-frequencies-of-mp3 [mp3-file]
   "Given an [mp3-file], return a sequence of [seconds-from-start peak-frequency] values over the entire mp3"
@@ -117,6 +64,7 @@
    freq-offset-mp3-map
    peak-frequencies))
 
+;; XXX: why doesn't this work?
 (defn save-sexp [d f]
   (with-open [w (clojure.java.io/writer f)]
     (.write w (binding [*print-dup* true] (prn d)))))
@@ -129,11 +77,14 @@
           {}
           mp3-files))
 
-(defn -main [& args] 
-  (let [cmd (command/basic :summary "enjoy music with more parts of your brain"
+(def cmd-test (command/basic :summary "enjoy music with more parts of your brain"
                            :spec [ (command/flag "-verbose" command/no-arg :doc "share more inner monologue")]
                            :main (fn [verbose]
                                    (printf "command.basic test\n")
                                    (printf "verbose: %s\n" verbose)
-                                   (flush)))]
-    (command/run cmd)))
+                                   (flush))))
+(defn -main [& args] 
+  (command/run
+    (command/group "enjoy music with more parts of your brain"
+                   [["test" cmd-test]
+                    ["gnuplot" gnuplot/cmd]])))
