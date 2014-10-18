@@ -103,7 +103,7 @@
           (= tag :group)
           (let [subcommands        ((apply hash-map (second command-or-group)) :subcommands)
                 subcommand-to-run  (first argv) ; XXX: use that starts-with function instead?
-                matches            (filter (fn [name _command-or-group] (.startsWith name subcommand-to-run)) subcommands)
+                matches            (filter (fn [[name _command-or-group]] (.startsWith name subcommand-to-run)) subcommands)
                 num-matches        (count matches)
                 usage-error        (fn [more-detail]
                                      (print-usage-error command-or-group
