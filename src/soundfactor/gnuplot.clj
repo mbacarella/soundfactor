@@ -1,12 +1,5 @@
 (ns soundfactor.gnuplot
   (:gen-class)
-  (:import java.lang.Math)
-  (:import java.io.File)
-  (:import java.io.FileNotFoundException)
-  (:import java.io.ByteArrayOutputStream)
-  (:import [java.nio ByteOrder])
-  (:use [clojure.java.io])
-  (:use [clojure.java.shell])
   (:use [soundfactor.util :as util])
   (:use [soundfactor.command :as command])
 )
@@ -68,9 +61,9 @@
         samples-per-span  (int (* hz sample-span))
         parted-samples    (partition samples-per-span time-series)
         save-series       (fn [series path]
-                              (with-open [wr (clojure.java.io/writer path)]
-                                (doseq [[x y] (map-indexed vector series)]
-                                  (.write wr (str x " " y "\n")))))]
+                            (util/write-lines path ; XXX: combine these into one map?
+                                              (map (fn [x y] (str x " " y "\n"))
+                                                   (map-indexed vector series))))]
     (do
       (save-series (map (fn [span-samples] (util/mean span-samples samples-per-span)) parted-samples) pcm-dat)
       (save-series (map (fn [span-samples] (dominant-frequency (fft-of-data span-samples))) parted-samples) spectro-dat))))

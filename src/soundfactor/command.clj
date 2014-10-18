@@ -8,12 +8,12 @@
   ; TODO: stderr
   (let [tag        (first command-or-group)
         cmd-as-map (apply hash-map (second command-or-group))
-        crumbs     (clojure.string/join " " (reverse breadcrumbs))]
+        crumbs     (clojure.string/join " " (cons *source-path* (reverse breadcrumbs)))]
     (printf "%s\n" (get-summary command-or-group))
     (printf "\n")
     (cond (= tag :command)
           (let [spec-list  (cmd-as-map :spec)]
-            (printf "  argv[0] %s<args>\n" crumbs)
+            (printf "  %s <args>\n" crumbs)
             (printf "\n")
             (if (not (empty? spec-list))
               (do (printf "___ flags ___\n\n")
@@ -23,7 +23,7 @@
             (flush))
           (= tag :group) 
           (let [subcommands (cmd-as-map :subcommands)]
-            (printf "  argv[0] %s\n" crumbs)
+            (printf "  %s\n" crumbs)
             (printf "\n")
             (if (not (empty? subcommands))
               (do (printf "___ subcommands ___\n\n")
@@ -66,7 +66,7 @@
             (match [type-tag]
                    [:required] [:usage-error (format "the '%s' flag is required" switch)]
                    [:optional] (return-value nil)
-                   [:optional_with_default] (return-value (nth type-info 2))
+                   [:optional-with-default] (return-value (nth type-info 2))
                    [:no-arg] (return-value false)
                    :else (assert false (str "process-flag: unknown type-tag: " type-tag))))))))) 
 
@@ -101,25 +101,30 @@
   (let [tag (first command-or-group)]
     (cond (= tag :command) (process-command (second command-or-group) argv breadcrumbs)
           (= tag :group)
-          (let [subcommands        ((apply hash-map (second command-or-group)) :subcommands)
-                subcommand-to-run  (first argv) ; XXX: use that starts-with function instead?
-                matches            (filter (fn [[name _command-or-group]] (.startsWith name subcommand-to-run)) subcommands)
-                num-matches        (count matches)
-                usage-error        (fn [more-detail]
-                                     (print-usage-error command-or-group
-                                                        breadcrumbs
-                                                        (format "specified sub-command \"%s\" %s" 
-                                                                subcommand-to-run 
-                                                                more-detail)))]
+          (let [subcommand-to-run (first argv)]
+            (if (nil? subcommand-to-run)
+              (print-usage command-or-group breadcrumbs)
+              (let [subcommands   ((apply hash-map (second command-or-group)) :subcommands)
+                    ;; XXX: use that starts-with function instead?
+                    matches       (filter (fn [[name _command-or-group]] (.startsWith name subcommand-to-run)) subcommands)
+                    num-matches   (count matches)
+                    usage-error   (fn [more-detail]
+                                    (print-usage-error command-or-group
+                                                       breadcrumbs
+                                                       (format "specified sub-command \"%s\" %s" 
+                                                               subcommand-to-run 
+                                                               more-detail)))]
                                         ; XXX: assert no duplicated sub-command names at this level
                                         ; XXX: ensure subcommand-to-run isn't a command-line switch
-            (cond (= num-matches 1) (let [match (first matches)] 
-                                      (process-command-or-group (second match)
-                                                                (rest argv)
-                                                                (cons (first matches) breadcrumbs)))
-                  (> num-matches 1) (usage-error "is ambiguous")
-                  (< num-matches 1) (usage-error "not found"))
-          :else (assert false "process-command-or-group: did not get :command or :group")))))
+                (cond (= num-matches 1) (let [match (first matches)] 
+                                          (process-command-or-group (second match)
+                                                                    (rest argv)
+                                                                    (cons (first match) breadcrumbs)))
+                      (> num-matches 1) (usage-error "is ambiguous")
+                      (< num-matches 1) (usage-error "not found"))
+               )))
+          :else (assert false (format "process-command-or-group: did not get :command or :group: %s"
+                                      command-or-group)))))
 
 (defn required [type] [:required type])
 (defn optional [type] [:optional type])

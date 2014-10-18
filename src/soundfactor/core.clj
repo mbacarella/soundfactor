@@ -1,10 +1,6 @@
 (ns soundfactor.core
   (:gen-class)
   (:import java.lang.Math)
-  (:import java.io.File)
-  (:import java.io.FileNotFoundException)
-  (:import java.io.ByteArrayOutputStream)
-  (:import java.nio.ByteBuffer)
   (:use [clojure.java.shell])
   (:use [soundfactor.command :as command])
   (:use [soundfactor.gnuplot :as gnuplot])
@@ -78,12 +74,12 @@
           mp3-files))
 
 (def cmd-test (command/basic :summary "enjoy music with more parts of your brain"
-                           :spec [ (command/flag "-verbose" command/no-arg :doc "share more inner monologue")]
-                           :main (fn [verbose]
-                                   (printf "command.basic test\n")
-                                   (printf "verbose: %s\n" verbose)
-                                   (flush))))
-(defn -main [& args] 
+                             :spec [ (command/flag "-verbose" command/no-arg :doc "share more inner monologue")]
+                             :main (fn [verbose]
+                                     (printf "command.basic test\n")
+                                     (printf "verbose: %s\n" verbose)
+                                     (flush))))
+(defn -main [& args]
   (command/run
     (command/group "enjoy music with more parts of your brain"
                    [["test" cmd-test]

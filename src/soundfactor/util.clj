@@ -1,6 +1,8 @@
 (ns soundfactor.util
   (:import java.nio.ByteBuffer)
-  (:import [java.nio ByteOrder])
+  (:import java.nio.ByteOrder)
+  (:use [clojure.java.io])
+  (:use [clojure.java.shell])
 )
 
 ;; XXX: there must be standard lib versions of these
@@ -12,7 +14,8 @@
 (defn write-lines [path lines]
   (with-open [writer (clojure.java.io/writer path)]
     (doseq [line lines]
-      (.write writer "%s\n" line))))
+      (.write writer line)
+      (.write writer "\n"))))
 
 (defn getpid []
   (let [pid-at-host-str
