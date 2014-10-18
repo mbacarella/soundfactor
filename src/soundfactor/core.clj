@@ -5,10 +5,10 @@
   (:import java.io.FileNotFoundException)
   (:import java.io.ByteArrayOutputStream)
   (:import java.nio.ByteBuffer)
-  (:import [java.nio ByteOrder])
   (:use [clojure.java.shell])
   (:use [soundfactor.command :as command])
   (:use [soundfactor.gnuplot :as gnuplot])
+  (:use [soundfactor.util :as util])
 )
 
 ;; (defn euclidean-norm [v]
@@ -40,7 +40,7 @@
 (defn get-peak-frequencies-of-mp3 [mp3-file]
   "Given an [mp3-file], return a sequence of [seconds-from-start peak-frequency] values over the entire mp3"
   (let [bucket-size         (/ samples-per-second buckets-per-second)
-        mp3-raw-samples     (double-array (get-mp3-sample-data-mono mp3-file))
+        mp3-raw-samples     (double-array (util/get-mp3-sample-data-mono mp3-file))
         num-mp3-raw-samples (alength mp3-raw-samples)
         total-buckets       (- (/ num-mp3-raw-samples bucket-size) 1) ; throw away the end bucket
         fft                 (mikera.matrixx.algo.FFT. (int bucket-size))

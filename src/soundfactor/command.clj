@@ -98,11 +98,12 @@
         (apply main args-for-main)))))
 
 (defn process-command-or-group [command-or-group argv breadcrumbs]
-  (let [tag (first command-or-group)]  
+  (let [tag (first command-or-group)]
     (cond (= tag :command) (process-command (second command-or-group) argv breadcrumbs)
           (= tag :group)
-          (let [subcommand-to-run  (first argv)
-                matches            (filter (fn [name _command-or-group] (.startsWith name subcommand-to-run)))
+          (let [subcommands        ((apply hash-map (second command-or-group)) :subcommands)
+                subcommand-to-run  (first argv) ; XXX: use that starts-with function instead?
+                matches            (filter (fn [name _command-or-group] (.startsWith name subcommand-to-run)) subcommands)
                 num-matches        (count matches)
                 usage-error        (fn [more-detail]
                                      (print-usage-error command-or-group
@@ -110,8 +111,8 @@
                                                         (format "specified sub-command \"%s\" %s" 
                                                                 subcommand-to-run 
                                                                 more-detail)))]
-                                        ; TODO: assert no duplicated sub-command names
-                                        ; TODO: ensure subcommand-to-run isn't a command-line switch
+                                        ; XXX: assert no duplicated sub-command names at this level
+                                        ; XXX: ensure subcommand-to-run isn't a command-line switch
             (cond (= num-matches 1) (let [match (first matches)] 
                                       (process-command-or-group (second match)
                                                                 (rest argv)
@@ -137,7 +138,7 @@
              :spec spec
              :main main]])
 
-(defn group [{:keys [summary names-and-subcommands]}]
+(defn group [summary names-and-subcommands]
   ; TODO: ensure names aren't command-line switch names
   [:group [:summary summary :subcommands names-and-subcommands]])
 

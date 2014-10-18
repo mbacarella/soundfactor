@@ -1,5 +1,6 @@
 (ns soundfactor.util
   (:import java.nio.ByteBuffer)
+  (:import [java.nio ByteOrder])
 )
 
 ;; XXX: there must be standard lib versions of these

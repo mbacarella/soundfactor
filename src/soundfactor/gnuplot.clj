@@ -63,9 +63,9 @@
 ;;       (.write writer (str offset " " freq "\n")))))
 
 (defn write-pcm-and-spectro-dat [sample-span input-mp3 pcm-dat spectro-dat]
-  (let [time-series       (get-mp3-sample-data-mono input-mp3)
+  (let [time-series       (util/get-mp3-sample-data-mono input-mp3)
         hz                44100
-        samples-per-span  (int (* 44100 sample-span))
+        samples-per-span  (int (* hz sample-span))
         parted-samples    (partition samples-per-span time-series)
         save-series       (fn [series path]
                               (with-open [wr (clojure.java.io/writer path)]
@@ -83,11 +83,10 @@
                          (command/anon "input.mp3") ]
                  :main (fn [sample-span input-mp3]  ;; XXX: include pid in tmpfile names
                          (let [pid                 (util/getpid)
-                               tmpfile-pcm         (format "/tmp/%s-pcm.gnuplot" input-mp3)
-                               tmpfile-spectro     (format "/tmp/%s-spectro.gnuplot" input-mp3)
-                               tmpfile-pcm-dat     (format "/tmp/%s-pcm.dat" input-mp3)
-                               tmpfile-spectro-dat (format "/tmp/%s-spectro.dat" input-mp3)
-                               time-dom            (double-array (get-mp3-sample-data-mono input-mp3))]
+                               tmpfile-pcm         (format "/tmp/%d.%s-pcm.gnuplot" pid input-mp3)
+                               tmpfile-spectro     (format "/tmp/%d.%s-spectro.gnuplot" pid input-mp3)
+                               tmpfile-pcm-dat     (format "/tmp/%d.%s-pcm.dat" pid input-mp3)
+                               tmpfile-spectro-dat (format "/tmp/%d.%s-spectro.dat" pid input-mp3)]
                            (do
                              (util/write-lines tmpfile-pcm
                                                ["reset"
