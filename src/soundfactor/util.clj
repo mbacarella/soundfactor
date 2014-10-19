@@ -7,9 +7,12 @@
 
 ;; TODO: there must be standard lib versions of these
 
-(defn mean [xs n] (/ (reduce + xs) n))
+(defn mean [xs n] (float (/ (reduce + xs) n)))
 
 (defn abs [n] (max n (- n)))
+
+(defn basename [path]
+  (.getName (clojure.java.io/as-file path)))
 
 (defn write-lines [path lines]
   (with-open [writer (clojure.java.io/writer path)]
@@ -26,13 +29,15 @@
 ;; TODO: fall back to the crappy java API version if we can't find mp3-decoder?
 (defn get-mp3-sample-data-mono [mp3-file]
   "Return a short array of mp3 sample data"
-  (let [mp3-decoder     "/usr/bin/mp3-decoder"
-        my-byte-array   ((clojure.java.shell/sh mp3-decoder "-m" "-s" mp3-file :out-enc :bytes) :out)
-        my-short-array  (short-array (/ (alength my-byte-array) 2))
-        short-buffer    (.asShortBuffer (.order (ByteBuffer/wrap my-byte-array) ByteOrder/LITTLE_ENDIAN))]
-    (do
-      (.get short-buffer my-short-array)
-      my-short-array)))
+  (if (not (.exists (clojure.java.io/as-file mp3-file)))
+    (throw (Exception. (format "get-mp3-sample-data-mono: %s does not exist" mp3-file)))
+    (let [mp3-decoder     "/usr/bin/mp3-decoder"
+          my-byte-array   ((clojure.java.shell/sh mp3-decoder "-m" "-s" mp3-file :out-enc :bytes) :out)
+          my-short-array  (short-array (/ (alength my-byte-array) 2))
+          short-buffer    (.asShortBuffer (.order (ByteBuffer/wrap my-byte-array) ByteOrder/LITTLE_ENDIAN))]
+      (do
+        (.get short-buffer my-short-array)
+        my-short-array))))
 
 ;; (defn get-mp3-sample-data-native [mp3-file] 
 ;;   (try

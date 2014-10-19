@@ -21,22 +21,19 @@
 ;;       (.realForward fft tarr)
 ;;       tarr)))
 
+;; TODO: is there a better FFT library? this one seems flakey
 (defn fft-of-data [time-series]
-  (let [n     (count time-series)
+  (let [data  (double-array time-series)
+        n     (count data)
         fft   (mikera.matrixx.algo.FFT. (int n))
         tarr  (double-array (* n 2))]
     (do
-      (System/arraycopy time-series 0 tarr 0 n)
+      (System/arraycopy data 0 tarr 0 n)
       (.realForward fft tarr)
       tarr)))
 
 (defn dominant-frequency [fft-result]
-  (reduce (fn [[i-max x-max] [i x]]
-            (let [abs-x (util/abs x)]
-              (if (> abs-x x-max)
-                [i abs-x]
-                [i-max x-max])))
-          (map-indexed vector fft-result)))
+  (reduce (fn [a b] (max a b)) fft-result))
 
 ;; (defn graph-sine-wave-and-its-fft [n]
 ;;   (let [time-dom    (sine-wave n)
@@ -62,11 +59,18 @@
         parted-samples    (partition samples-per-span time-series)
         save-series       (fn [series path]
                             (util/write-lines path ; XXX: combine these into one map?
-                                              (map (fn [x y] (str x " " y "\n"))
+                                              (map (fn [[x y]] (str x " " y))
                                                    (map-indexed vector series))))]
     (do
-      (save-series (map (fn [span-samples] (util/mean span-samples samples-per-span)) parted-samples) pcm-dat)
-      (save-series (map (fn [span-samples] (dominant-frequency (fft-of-data span-samples))) parted-samples) spectro-dat))))
+      (save-series (map (fn [span-samples] 
+                          (util/mean span-samples samples-per-span)) 
+                        parted-samples) 
+                   pcm-dat)
+      (save-series (map (fn [span-samples] 
+                          ;; TODO: normalize frequencies vs samples-per-span
+                          (dominant-frequency (fft-of-data span-samples))) 
+                        parted-samples) 
+                   spectro-dat))))
 
 (def cmd
   (command/basic :summary "create pcm and spectrogram gnuplots from mp3s"
@@ -74,16 +78,20 @@
                                        (command/optional-with-default :float 0.1)
                                        :doc "<SPAN> sample-size")
                          (command/anon "input.mp3") ]
-                 :main (fn [sample-span input-mp3]  ;; XXX: include pid in tmpfile names
+                 :main (fn [sample-span input-mp3]
                          (let [pid                 (util/getpid)
-                               tmpfile-pcm         (format "/tmp/%d.%s-pcm.gnuplot" pid input-mp3)
-                               tmpfile-spectro     (format "/tmp/%d.%s-spectro.gnuplot" pid input-mp3)
-                               tmpfile-pcm-dat     (format "/tmp/%d.%s-pcm.dat" pid input-mp3)
-                               tmpfile-spectro-dat (format "/tmp/%d.%s-spectro.dat" pid input-mp3)]
+                               base                (format "/tmp/%s-%d" (util/basename input-mp3) pid)
+                               tmpfile-pcm         (format "%s-pcm.gnuplot" base)
+                               tmpfile-spectro     (format "%s-spectro.gnuplot" base)
+                               tmpfile-pcm-dat     (format "%s-pcm.dat" base)
+                               tmpfile-spectro-dat (format "%s-spectro.dat" base)]
                            (do
                              (printf "sample-span: %s\n" sample-span)
                              (printf "input-mp3: %s\n" input-mp3)
+                             (printf "base: %s\n" base)
                              (flush)
+                             (write-pcm-and-spectro-dat sample-span input-mp3 tmpfile-pcm-dat
+                                                        tmpfile-spectro-dat)
                              (util/write-lines tmpfile-pcm
                                                ["reset"
                                                 "set title \"sine wave\""
@@ -98,8 +106,6 @@
                                            "set xlabel \"freq\""
                                            "set ylabel \"magnitude\""
                                            "set grid"
-                                           "set xrange [0:24000]"
+                                           "set yrange [0:24000]"
                                            "set term x11 1"
-                                           (format "plot \"%s\"" tmpfile-spectro-dat)])
-                             (write-pcm-and-spectro-dat sample-span input-mp3 tmpfile-pcm-dat
-                                                        tmpfile-spectro-dat))))))
+                                           (format "plot \"%s\"" tmpfile-spectro-dat)]))))))

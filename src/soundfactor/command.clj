@@ -38,9 +38,21 @@
   (System/exit 1))
 
 (defn starts-with [haystack needle]
-  (and (nil? haystack)
-       (nil? needle)
+  (and (not (nil? haystack))
+       (not (nil? needle))
        (.startsWith haystack needle)))
+
+(defn coerce-type-for-flag [flag type value]
+  (try
+    (match [type]
+           [:float] (Float/parseFloat value)
+           [:int]   (Integer/parseInt value)
+           [:string] value
+           ;; XXX: time span
+           :else (assert false (format "coerce-type-for-flag: %s %s %s" flag type value)))
+    (catch Exception e 
+      (throw (Exception. (format "could not parse flag %s value %s into %s: %s"
+                                 flag value type (.toString e)))))))
 
 (defn process-flag [spec-as-map args-for-main argv]
   (let [switch           (spec-as-map :flag)
@@ -61,7 +73,7 @@
                   [true (rest argv-middle-and-after)]
                   [(second argv-middle-and-after)
                    (rest (rest argv-middle-and-after))])]
-            (return-ok [(concat args-for-main [value]) 
+            (return-ok [(concat args-for-main [(coerce-type-for-flag switch (second type-info) value)]) 
                         (concat argv-before argv-after)]))
           ;; switch not found. maybe it's optional?
           (let [return-value (fn [value] (return-ok [(concat args-for-main [value]) argv]))]
@@ -73,14 +85,13 @@
                    :else (assert false (str "process-flag: unknown type-tag: " type-tag)))))))))
 
 (defn process-anon-arg [args-for-main argv]
-  ;; find and remove the next non-flag element of argv
-  (let [argv-before           (take-while (fn [arg] (not (starts-with arg "-"))) argv)
-        argv-middle-and-after (drop (count argv-before) argv)
-        anon-arg              (first argv-middle-and-after)]
-    (if (or (nil? anon-arg) (starts-with anon-arg "-"))
+  (let [anon-arg (first argv)]
+    (if (nil? anon-arg)
       [:usage-error "an anonymous argument is required"]
-      [:ok [(concat args-for-main [anon-arg]) 
-            (concat argv-before (rest argv-middle-and-after))]])))
+      (if (starts-with anon-arg "-")
+        [:usage-error "found flag, expected anonymous argument"]
+        [:ok [(concat args-for-main [anon-arg])
+              (rest argv)]]))))
 
 (defn process-command [cmd argv breadcrumbs]
   (let [cmd-wrap    [:command cmd] ; un-destructure this, for passing
@@ -92,6 +103,9 @@
                       (match ok-or-usage-error
                              [:ok result] result
                              [:usage-error s] (usage-error s)))]
+    ;; TODO: this is wrong. rework to consume all of the flags in argv on the first pass,
+    ;;  then do the anonymous args on a second pass
+    ;;  or maybe force all anonymous args to be at the end? hmm
     (let [[args-for-main argv-leftovers] 
           (reduce (fn [[args-for-main argv] spec]
                     (let [spec-as-map (apply hash-map spec)]
