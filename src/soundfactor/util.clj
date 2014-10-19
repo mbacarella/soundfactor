@@ -5,7 +5,7 @@
   (:use [clojure.java.shell])
 )
 
-;; XXX: there must be standard lib versions of these
+;; TODO: there must be standard lib versions of these
 
 (defn mean [xs n] (/ (reduce + xs) n))
 
@@ -23,11 +23,11 @@
     (if-let [match (re-find #"^(\d+)@" pid-at-host-str)]
       (read-string (second match)))))
 
-;; XXX: fall back to the crappy java API version if we can't find mp3-decoder?
+;; TODO: fall back to the crappy java API version if we can't find mp3-decoder?
 (defn get-mp3-sample-data-mono [mp3-file]
   "Return a short array of mp3 sample data"
   (let [mp3-decoder     "/usr/bin/mp3-decoder"
-        my-byte-array   (:out (clojure.java.shell/sh mp3-decoder "-m" "-s" mp3-file :out-enc :bytes))
+        my-byte-array   ((clojure.java.shell/sh mp3-decoder "-m" "-s" mp3-file :out-enc :bytes) :out)
         my-short-array  (short-array (/ (alength my-byte-array) 2))
         short-buffer    (.asShortBuffer (.order (ByteBuffer/wrap my-byte-array) ByteOrder/LITTLE_ENDIAN))]
     (do

@@ -60,7 +60,7 @@
    freq-offset-mp3-map
    peak-frequencies))
 
-;; XXX: why doesn't this work?
+;; TODO: why doesn't this work?
 (defn save-sexp [d f]
   (with-open [w (clojure.java.io/writer f)]
     (.write w (binding [*print-dup* true] (prn d)))))

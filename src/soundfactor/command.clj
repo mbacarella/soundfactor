@@ -6,32 +6,30 @@
 
 (defn print-usage [command-or-group breadcrumbs]
   ; TODO: stderr
-  (let [tag        (first command-or-group)
-        cmd-as-map (apply hash-map (second command-or-group))
+  (let [cmd-as-map (apply hash-map (second command-or-group))
         crumbs     (clojure.string/join " " (cons *source-path* (reverse breadcrumbs)))]
     (printf "%s\n" (get-summary command-or-group))
     (printf "\n")
-    (cond (= tag :command)
-          (let [spec-list  (cmd-as-map :spec)]
-            (printf "  %s <args>\n" crumbs)
-            (printf "\n")
-            (if (not (empty? spec-list))
-              (do (printf "___ flags ___\n\n")
-                  (doseq [spec spec-list]
-                    (printf "  spec: %s\n" spec))))
-            (printf "\n")
-            (flush))
-          (= tag :group) 
-          (let [subcommands (cmd-as-map :subcommands)]
-            (printf "  %s\n" crumbs)
-            (printf "\n")
-            (if (not (empty? subcommands))
-              (do (printf "___ subcommands ___\n\n")
-                  (doseq [[name sub-command] (cmd-as-map :subcommands)]
-                    (printf "  %s          %s\n" name (get-summary sub-command)))))
-            (printf "\n")
-            (flush))
-          :else (assert false "print-usage: did not get :command or :group"))))
+    (match [(first command-or-group)]
+           [:command] (let [spec-list  (cmd-as-map :spec)]
+                        (printf "  %s <args>\n" crumbs)
+                        (printf "\n")
+                        (if (not (empty? spec-list))
+                          (do (printf "___ flags ___\n\n")
+                              (doseq [spec spec-list]
+                                (printf "  spec: %s\n" spec))))
+                        (printf "\n")
+                        (flush))
+           [:group] (let [subcommands (cmd-as-map :subcommands)]
+                      (printf "  %s\n" crumbs)
+                      (printf "\n")
+                      (if (not (empty? subcommands))
+                        (do (printf "___ subcommands ___\n\n")
+                            (doseq [[name sub-command] (cmd-as-map :subcommands)]
+                              (printf "  %s          %s\n" name (get-summary sub-command)))))
+                      (printf "\n")
+                      (flush))
+           :else (assert false "print-usage: did not get :command or :group"))))
 
 (defn print-usage-error [command-or-group breadcrumbs s] 
   (print-usage command-or-group breadcrumbs)
@@ -39,9 +37,13 @@
   (flush)
   (System/exit 1))
 
+(defn starts-with [haystack needle]
+  (and (nil? haystack)
+       (nil? needle)
+       (.startsWith haystack needle)))
+
 (defn process-flag [spec-as-map args-for-main argv]
-  (let [starts-with      (fn [haystack needle] (if (nil? needle) false (.startsWith haystack needle)))
-        switch           (spec-as-map :flag)
+  (let [switch           (spec-as-map :flag)
         partial-matches  (filter (fn [arg] (starts-with switch arg)) argv)]
     (if (> (count partial-matches) 1)
       ;; we allow the user to specify less than the full name of the flag so long as it uniquely
@@ -68,22 +70,34 @@
                    [:optional] (return-value nil)
                    [:optional-with-default] (return-value (nth type-info 2))
                    [:no-arg] (return-value false)
-                   :else (assert false (str "process-flag: unknown type-tag: " type-tag))))))))) 
+                   :else (assert false (str "process-flag: unknown type-tag: " type-tag)))))))))
+
+(defn process-anon-arg [args-for-main argv]
+  ;; find and remove the next non-flag element of argv
+  (let [argv-before           (take-while (fn [arg] (not (starts-with arg "-"))) argv)
+        argv-middle-and-after (drop (count argv-before) argv)
+        anon-arg              (first argv-middle-and-after)]
+    (if (or (nil? anon-arg) (starts-with anon-arg "-"))
+      [:usage-error "an anonymous argument is required"]
+      [:ok [(concat args-for-main [anon-arg]) 
+            (concat argv-before (rest argv-middle-and-after))]])))
 
 (defn process-command [cmd argv breadcrumbs]
-  (let [cmd-wrap   [:command cmd] ; un-destructure this, for passing
-        cmd-as-map (apply hash-map cmd)
-        spec-list  (cmd-as-map :spec)
-        main       (cmd-as-map :main)]
-    ; TODO: assert no duplicate switches in spec
+  (let [cmd-wrap    [:command cmd] ; un-destructure this, for passing
+        cmd-as-map  (apply hash-map cmd)
+        spec-list   (cmd-as-map :spec)
+        main        (cmd-as-map :main)
+        usage-error (fn [s] (print-usage-error cmd-wrap breadcrumbs s))
+        dispatch    (fn [ok-or-usage-error]
+                      (match ok-or-usage-error
+                             [:ok result] result
+                             [:usage-error s] (usage-error s)))]
     (let [[args-for-main argv-leftovers] 
           (reduce (fn [[args-for-main argv] spec]
                     (let [spec-as-map (apply hash-map spec)]
-                      (cond (contains? spec-as-map :flag)
-                            (match (process-flag spec-as-map args-for-main argv)
-                                   [:ok result] result
-                                   [:usage-error s] (print-usage-error cmd-wrap breadcrumbs s))
-                            (contains? spec-as-map :anon)      [(concat args-for-main [(first argv)]) (rest argv)]
+                      (cond (contains? spec-as-map :flag) (dispatch (process-flag spec-as-map args-for-main argv))
+                            (contains? spec-as-map :anon) (dispatch (process-anon-arg args-for-main argv))
+                            ;; TODO: make sure anon-list is at the end
                             (contains? spec-as-map :anon-list) [(concat args-for-main argv) []]
                             :else (assert false (str "bad spec" spec))))) 
                   [[] argv]
@@ -92,7 +106,7 @@
         (print-usage-error cmd-wrap 
                            breadcrumbs 
                            (let [extra (first argv-leftovers)]
-                             (if (.startsWith extra "-")
+                             (if (starts-with extra "-")
                                (format "unknown flag: %s" extra)
                                (format "too many anonymous arguments: %s" extra))))
         (apply main args-for-main)))))
@@ -105,7 +119,7 @@
             (if (nil? subcommand-to-run)
               (print-usage command-or-group breadcrumbs)
               (let [subcommands   ((apply hash-map (second command-or-group)) :subcommands)
-                    ;; XXX: use that starts-with function instead?
+                    ;; TODO: use that starts-with function instead?
                     matches       (filter (fn [[name _command-or-group]] (.startsWith name subcommand-to-run)) subcommands)
                     num-matches   (count matches)
                     usage-error   (fn [more-detail]
@@ -114,8 +128,8 @@
                                                        (format "specified sub-command \"%s\" %s" 
                                                                subcommand-to-run 
                                                                more-detail)))]
-                                        ; XXX: assert no duplicated sub-command names at this level
-                                        ; XXX: ensure subcommand-to-run isn't a command-line switch
+                                        ; TODO: assert no duplicated sub-command names at this level
+                                        ; TODO: ensure subcommand-to-run isn't a command-line switch
                 (cond (= num-matches 1) (let [match (first matches)] 
                                           (process-command-or-group (second match)
                                                                     (rest argv)

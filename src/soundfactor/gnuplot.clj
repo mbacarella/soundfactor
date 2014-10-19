@@ -69,7 +69,7 @@
       (save-series (map (fn [span-samples] (dominant-frequency (fft-of-data span-samples))) parted-samples) spectro-dat))))
 
 (def cmd
-  (command/basic :summary "create pcm and spectrograms from mp3s"
+  (command/basic :summary "create pcm and spectrogram gnuplots from mp3s"
                  :spec [ (command/flag "-sample-span"
                                        (command/optional-with-default :float 0.1)
                                        :doc "<SPAN> sample-size")
@@ -81,6 +81,9 @@
                                tmpfile-pcm-dat     (format "/tmp/%d.%s-pcm.dat" pid input-mp3)
                                tmpfile-spectro-dat (format "/tmp/%d.%s-spectro.dat" pid input-mp3)]
                            (do
+                             (printf "sample-span: %s\n" sample-span)
+                             (printf "input-mp3: %s\n" input-mp3)
+                             (flush)
                              (util/write-lines tmpfile-pcm
                                                ["reset"
                                                 "set title \"sine wave\""
