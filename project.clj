@@ -11,4 +11,5 @@
                  [net.mikera/vectorz-clj "0.17.0"]
                  [net.mikera/vectorz "0.25.0"]
                  [net.mikera/core.matrix "0.16.0"]
+                 [quil "2.2.2"]
                  ])

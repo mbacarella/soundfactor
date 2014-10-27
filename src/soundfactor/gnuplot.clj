@@ -1,7 +1,7 @@
 (ns soundfactor.gnuplot
   (:gen-class)
-  (:use [soundfactor.util :as util])
-  (:use [soundfactor.command :as command])
+  (:require [soundfactor.util :as util])
+  (:require [soundfactor.command :as command])
 )
 
 ;; (defn degrees-to-radians [degrees]
@@ -33,7 +33,10 @@
       tarr)))
 
 (defn dominant-frequency [fft-result]
-  (reduce (fn [a b] (max a b)) fft-result))
+  (first
+   (reduce (fn [[best-freq best-mag] [freq mag]]
+             (if (> mag best-mag) [freq mag] [best-freq best-mag]))
+           (map-indexed vector fft-result))))
 
 ;; (defn graph-sine-wave-and-its-fft [n]
 ;;   (let [time-dom    (sine-wave n)
@@ -56,21 +59,18 @@
   (let [time-series       (util/get-mp3-sample-data-mono input-mp3)
         hz                44100
         samples-per-span  (int (* hz sample-span))
+        spans-per-second  (/ 1 sample-span)
         parted-samples    (partition samples-per-span time-series)
         save-series       (fn [series path]
                             (util/write-lines path ; XXX: combine these into one map?
                                               (map (fn [[x y]] (str x " " y))
                                                    (map-indexed vector series))))]
-    (do
-      (save-series (map (fn [span-samples] 
-                          (util/mean span-samples samples-per-span)) 
-                        parted-samples) 
-                   pcm-dat)
-      (save-series (map (fn [span-samples] 
-                          ;; TODO: normalize frequencies vs samples-per-span
-                          (dominant-frequency (fft-of-data span-samples))) 
-                        parted-samples) 
-                   spectro-dat))))
+    (save-series (map (fn [span-samples]
+                        (util/mean span-samples samples-per-span))
+                      parted-samples) pcm-dat)
+    (save-series (map (fn [span-samples]
+                        (* spans-per-second (dominant-frequency (fft-of-data span-samples))))
+                      parted-samples) spectro-dat)))
 
 (def cmd
   (command/basic :summary "create pcm and spectrogram gnuplots from mp3s"
@@ -94,7 +94,7 @@
                                                         tmpfile-spectro-dat)
                              (util/write-lines tmpfile-pcm
                                                ["reset"
-                                                "set title \"sine wave\""
+                                                "set title \"pcm waveform\""
                                                 "set xlabel \"time\""
                                                 "set ylabel \"power\""
                                                 "set grid"

@@ -2,9 +2,10 @@
   (:gen-class)
   (:import java.lang.Math)
   (:use [clojure.java.shell])
-  (:use [soundfactor.command :as command])
-  (:use [soundfactor.gnuplot :as gnuplot])
-  (:use [soundfactor.util :as util])
+  (:require [soundfactor.command :as command])
+  (:require [soundfactor.gnuplot :as gnuplot])
+  (:require [soundfactor.quildemo :as quildemo])
+  (:require [soundfactor.util :as util])
 )
 
 ;; (defn euclidean-norm [v]
@@ -30,48 +31,48 @@
 ;;                     (catch Exception e (assoc results-map test-key [:err e]))))))
 ;;             results-map rest-mp3s)))
 
-(def samples-per-second 44100) ; mp3-decoder guarantees this?
-(def buckets-per-second 30)    ; how many buckets/sec to build a spectrogram over
+;; (def samples-per-second 44100) ; mp3-decoder guarantees this?
+;; (def buckets-per-second 30)    ; how many buckets/sec to build a spectrogram over
 
-(defn get-peak-frequencies-of-mp3 [mp3-file]
-  "Given an [mp3-file], return a sequence of [seconds-from-start peak-frequency] values over the entire mp3"
-  (let [bucket-size         (/ samples-per-second buckets-per-second)
-        mp3-raw-samples     (double-array (util/get-mp3-sample-data-mono mp3-file))
-        num-mp3-raw-samples (alength mp3-raw-samples)
-        total-buckets       (- (/ num-mp3-raw-samples bucket-size) 1) ; throw away the end bucket
-        fft                 (mikera.matrixx.algo.FFT. (int bucket-size))
-        tarr                (double-array (* bucket-size 2))]
-    (map (fn [i-bucket]
-           (do
-             (System/arraycopy mp3-raw-samples (* i-bucket bucket-size) tarr 0 bucket-size)
-             (.realForward fft tarr) ; magic
-             (let [offset-in-seconds  (/ (* i-bucket bucket-size) (float samples-per-second))
-                   [dom-freq _value]  (dominant-frequency tarr bucket-size)]
-               [offset-in-seconds (* dom-freq buckets-per-second)])))
-         (range total-buckets))))
+;; (defn get-peak-frequencies-of-mp3 [mp3-file]
+;;   "Given an [mp3-file], return a sequence of [seconds-from-start peak-frequency] values over the entire mp3"
+;;   (let [bucket-size         (/ samples-per-second buckets-per-second)
+;;         mp3-raw-samples     (double-array (util/get-mp3-sample-data-mono mp3-file))
+;;         num-mp3-raw-samples (alength mp3-raw-samples)
+;;         total-buckets       (- (/ num-mp3-raw-samples bucket-size) 1) ; throw away the end bucket
+;;         fft                 (mikera.matrixx.algo.FFT. (int bucket-size))
+;;         tarr                (double-array (* bucket-size 2))]
+;;     (map (fn [i-bucket]
+;;            (do
+;;              (System/arraycopy mp3-raw-samples (* i-bucket bucket-size) tarr 0 bucket-size)
+;;              (.realForward fft tarr) ; magic
+;;              (let [offset-in-seconds  (/ (* i-bucket bucket-size) (float samples-per-second))
+;;                    [dom-freq _value]  (util/dominant-frequency tarr bucket-size)]
+;;                [offset-in-seconds (* dom-freq buckets-per-second)])))
+;;          (range total-buckets))))
 
-(defn gen-freq-offset-mp3-map [freq-offset-mp3-map peak-frequencies mp3-file]
-  "Turns a [offset freq] seq into a map of freq => [offset mp3] seq"
-  (reduce
-   (fn [freq-offset-mp3-map [offset peak-freq]]
-     (let [key         peak-freq
-           value       [offset mp3-file]]
-       (assoc freq-offset-mp3-map key (conj (or (freq-offset-mp3-map key) #{}) value))))
-   freq-offset-mp3-map
-   peak-frequencies))
+;; (defn gen-freq-offset-mp3-map [freq-offset-mp3-map peak-frequencies mp3-file]
+;;   "Turns a [offset freq] seq into a map of freq => [offset mp3] seq"
+;;   (reduce
+;;    (fn [freq-offset-mp3-map [offset peak-freq]]
+;;      (let [key         peak-freq
+;;            value       [offset mp3-file]]
+;;        (assoc freq-offset-mp3-map key (conj (or (freq-offset-mp3-map key) #{}) value))))
+;;    freq-offset-mp3-map
+;;    peak-frequencies))
 
-;; TODO: why doesn't this work?
-(defn save-sexp [d f]
-  (with-open [w (clojure.java.io/writer f)]
-    (.write w (binding [*print-dup* true] (prn d)))))
+;; ;; TODO: why doesn't this work?
+;; (defn save-sexp [d f]
+;;   (with-open [w (clojure.java.io/writer f)]
+;;     (.write w (binding [*print-dup* true] (prn d)))))
 
-(defn go [mp3-files]
-  (reduce (fn [freq-offset-mp3-map mp3-file]
-            (gen-freq-offset-mp3-map freq-offset-mp3-map
-                                     (get-peak-frequencies-of-mp3 mp3-file)
-                                     mp3-file))
-          {}
-          mp3-files))
+;; (defn go [mp3-files]
+;;   (reduce (fn [freq-offset-mp3-map mp3-file]
+;;             (gen-freq-offset-mp3-map freq-offset-mp3-map
+;;                                      (get-peak-frequencies-of-mp3 mp3-file)
+;;                                      mp3-file))
+;;           {}
+;;           mp3-files))
 
 (def cmd-test (command/basic :summary "enjoy music with more parts of your brain"
                              :spec [ (command/flag "-verbose" command/no-arg :doc "share more inner monologue")]
@@ -83,4 +84,5 @@
   (command/run
     (command/group "enjoy music with more parts of your brain"
                    [["test" cmd-test]
-                    ["gnuplot" gnuplot/cmd]])))
+                    ["gnuplot" gnuplot/cmd]
+                    ["quildemo" quildemo/cmd]])))
