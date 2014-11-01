@@ -1,6 +1,7 @@
 (ns soundfactor.quildemo
   (:require [quil.core :as q])
-  (:require [soundfactor.command :as command]))
+  (:require [soundfactor.command :as command])
+)
 
 (defn setup []
   (q/smooth)  ; anti-aliasing
@@ -25,4 +26,4 @@
 
 (def cmd (command/basic :summary "quil demo"
                         :spec []
-                        :main (gray-circles-demo)))
+                        :main gray-circles-demo))

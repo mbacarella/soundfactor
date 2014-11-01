@@ -6,7 +6,8 @@
   (:require [soundfactor.gnuplot :as gnuplot])
   (:require [soundfactor.quildemo :as quildemo])
   (:require [soundfactor.util :as util])
-)
+  (:require [soundfactor.visualize :as visualize]))
+
 
 ;; (defn euclidean-norm [v]
 ;;   (Math/sqrt (reduce + (map (fn [x] (Math/pow x 2)) v))))
@@ -85,4 +86,5 @@
     (command/group "enjoy music with more parts of your brain"
                    [["test" cmd-test]
                     ["gnuplot" gnuplot/cmd]
-                    ["quildemo" quildemo/cmd]])))
+                    ["quildemo" quildemo/cmd]
+                    ["visualize" visualize/cmd]])))
