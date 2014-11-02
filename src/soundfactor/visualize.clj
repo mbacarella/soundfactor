@@ -49,21 +49,24 @@
 
 (defn draw [state]
   (let [[series time]    @state
-        magnitude        (aget series (mod time (alength series)))
-        abs-magnitude    (util/abs magnitude)
-        magnitude-perc   (/ abs-magnitude 32768)
         screen-width     (q/width)
-        screen-height    (q/height)]
-    (printf "abs magnitude: %d => %d\n" time abs-magnitude) (flush)
-    ; (q/background-float 0) ; clear screen
-    (q/stroke           (q/random 255))
-    (q/stroke-weight    5)
-    (q/fill             128)
-    (let [x    (/ screen-width 2)
-          y    (/ screen-height 2)
-          diam-x (* screen-width magnitude-perc)
-          diam-y (* screen-height magnitude-perc)]
-      (q/ellipse x y diam-x diam-y))))
+        screen-height    (q/height)
+        samples-per-sec  100
+        stroke-width     (/ screen-width samples-per-sec)]
+    ;; draw bars starting on the right edge at time, then walk left/backwards
+    ;; through time drawing history
+    ;(printf "time: %d\n" time) (flush)
+    (q/background 0) ; clear screen
+    (q/stroke-weight stroke-width)
+    (q/stroke 255)
+    (doseq [i  (range time (- time samples-per-sec) -1)]
+      (let [i' (mod i (alength series))
+            x  (* stroke-width (- samples-per-sec (- time i)))
+            y  (/ screen-height 2)
+            m  (aget series i')
+            h  (* (/ m 32768) screen-height)]
+        ;(printf "x: %d, y: %d, h: %d\n" x y (int h)) (flush)
+        (q/line x y x (+ y (/ h 2)))))))
 
 (defn tick [mic-line state]
   (let [sample-size-in-bytes 2
@@ -85,7 +88,7 @@
                      [series next-time])))))
 
 (defn main []
-  (let [series     (short-array 1000) ; TODO: should probably be 2x screen width?
+  (let [series     (short-array 1000)
         time       0
         state      (atom [series time])
         mic-line   (open-mic-input-line (get-mixer-with-the-mic))]

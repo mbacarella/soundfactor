@@ -175,8 +175,6 @@
   ; TODO: ensure names aren't command-line switch names
   [:group [:summary summary :subcommands names-and-subcommands]])
 
-(defn run [command-or-group]
+(defn run [args command-or-group]
   "(run ...) processes command-line arguments to the program (argv) according to the specified command or group combinators"
-  (process-command-or-group command-or-group 
-                            *command-line-args* 
-                            []))
+  (process-command-or-group command-or-group args []))

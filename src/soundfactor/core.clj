@@ -83,6 +83,7 @@
                                      (flush))))
 (defn -main [& args]
   (command/run
+    args ; it sure would be nice if *command-line-args* worked
     (command/group "enjoy music with more parts of your brain"
                    [["test" cmd-test]
                     ["gnuplot" gnuplot/cmd]
