@@ -51,7 +51,7 @@
   (let [[series time]    @state
         screen-width     (q/width)
         screen-height    (q/height)
-        samples-per-sec  100
+        samples-per-sec  30
         stroke-width     (/ screen-width samples-per-sec)]
     ;; draw bars starting on the right edge at time, then walk left/backwards
     ;; through time drawing history
@@ -64,6 +64,7 @@
             x  (* stroke-width (- samples-per-sec (- time i)))
             y  (/ screen-height 2)
             m  (aget series i')
+            m  (* m 75) ; ghetto boost, use something logarithmic before anyone finds out
             h  (* (/ m 32768) screen-height)]
         ;(printf "x: %d, y: %d, h: %d\n" x y (int h)) (flush)
         (q/line x y x (+ y (/ h 2)))))))
