@@ -48,11 +48,11 @@
   (q/background 0))
 
 (defn draw [state]
-  (let [[series time]    @state
-        screen-width     (q/width)
-        screen-height    (q/height)
-        samples-per-sec  30
-        stroke-width     (/ screen-width samples-per-sec)]
+  (let [[pcm-series spectro-series time]    @state
+        screen-width      (q/width)
+        screen-height     (q/height)
+        samples-per-sec   30
+        stroke-width      (/ screen-width samples-per-sec)]
     ;; draw bars starting on the right edge at time, then walk left/backwards
     ;; through time drawing history
     ;(printf "time: %d\n" time) (flush)
@@ -60,18 +60,27 @@
     (q/stroke-weight stroke-width)
     (q/stroke 255)
     (doseq [i  (range time (- time samples-per-sec) -1)]
-      (let [i' (mod i (alength series))
+      (let [i' (mod i (alength pcm-series))
             x  (* stroke-width (- samples-per-sec (- time i)))
             y  (/ screen-height 2)
-            m  (aget series i')
-            m  (* m 75) ; ghetto boost, use something logarithmic before anyone finds out
-            h  (* (/ m 32768) screen-height)]
-        ;(printf "x: %d, y: %d, h: %d\n" x y (int h)) (flush)
+            m  (aget pcm-series i')
+            h  (* (/ m 32768) screen-height)
+            f  (aget spectro-series i')]
+        ;(printf "x: %d, h: %d, f: %d\n" (int x) (int h) (int f)) (flush)
+        (q/stroke-float (if (> f 16000) 255 0)
+                        (if (and (<= f 16000) (> f 4000)) 255 0)
+                        (if (<= f 4000) 255 0))
         (q/line x y x (+ y (/ h 2)))))))
+
+(defn clamp-to-short [x]
+  (cond (> x 32767) 32767
+        (< x -32766) -32766
+        :else x))
 
 (defn tick [mic-line state]
   (let [sample-size-in-bytes 2
-        samples-needed       (/ 44100 100)
+        samples-per-second   100
+        samples-needed       (/ 44100 samples-per-second)
         buffer-size          (* samples-needed sample-size-in-bytes)
         short-buffer         (short-array (/ buffer-size 2))
         buffer               (make-array (. Byte TYPE) buffer-size)
@@ -80,19 +89,31 @@
         bshort               (. bbyte (asShortBuffer))
         _ignored             (. bshort (get short-buffer))
         ;; compute summary of sample data
-        mean                 (/ (apply + short-buffer) (alength short-buffer))]
-    (swap! state (fn [[series time]]
+        ; mean                 (/ (apply + short-buffer) (alength short-buffer))
+        ;; let's try the min/max instead of the mean
+        ;; i suspect if we take the mean, higher frequency stuff regresses towards the
+        ;; mean and looks wimpy
+        pcm-value            (let [min' (apply min short-buffer)
+                                   max' (apply max short-buffer)]
+                               (if (> (Math/abs (float min')) max') min' max'))
+        fft                  (util/compute-fft short-buffer)
+        spectro-value        (clamp-to-short (* (util/dominant-frequency fft) samples-per-second))]
+    (swap! state (fn [[pcm-series spectro-series time]]
                    ;; this isn't actually an atomic update because series is a mutable array
                    ;; but... it's the thought that counts right?
-                   (let [next-time (inc time)]
-                     (aset series (mod next-time (alength series)) (short mean))
-                     [series next-time])))))
+                   (let [next-time (inc time)
+                         index     (mod next-time (alength pcm-series))]
+                     (aset pcm-series index (short pcm-value))
+                     (aset spectro-series index (short spectro-value))
+                     [pcm-series spectro-series next-time])))))
 
 (defn main []
-  (let [series     (short-array 1000)
-        time       0
-        state      (atom [series time])
-        mic-line   (open-mic-input-line (get-mixer-with-the-mic))]
+  (let [series-size    1000
+        pcm-series     (short-array series-size)
+        spectro-series (short-array series-size)
+        time           0
+        state          (atom [pcm-series spectro-series time])
+        mic-line       (open-mic-input-line (get-mixer-with-the-mic))]
     (.start (Thread. (fn [] 
                        (. mic-line start) ; start reading the microphone
                        (while true (tick mic-line state)))))

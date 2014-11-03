@@ -39,6 +39,22 @@
         (.get short-buffer my-short-array)
         my-short-array))))
 
+(defn compute-fft [time-series]
+  (let [data  (double-array time-series)
+        n     (count data)
+        fft   (mikera.matrixx.algo.FFT. (int n))
+        tarr  (double-array (* n 2))]
+    (do
+      (System/arraycopy data 0 tarr 0 n)
+      (.realForward fft tarr)
+      tarr)))
+
+(defn dominant-frequency [fft-result]
+  (first
+   (reduce (fn [[best-freq best-mag] [freq mag]]
+             (if (> mag best-mag) [freq mag] [best-freq best-mag]))
+           (map-indexed vector fft-result))))
+
 ;; (defn get-mp3-sample-data-native [mp3-file] 
 ;;   (try
 ;;     (let [file-object      (File. mp3-file)

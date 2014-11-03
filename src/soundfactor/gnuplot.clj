@@ -21,23 +21,6 @@
 ;;       (.realForward fft tarr)
 ;;       tarr)))
 
-;; TODO: is there a better FFT library? this one seems flakey
-(defn fft-of-data [time-series]
-  (let [data  (double-array time-series)
-        n     (count data)
-        fft   (mikera.matrixx.algo.FFT. (int n))
-        tarr  (double-array (* n 2))]
-    (do
-      (System/arraycopy data 0 tarr 0 n)
-      (.realForward fft tarr)
-      tarr)))
-
-(defn dominant-frequency [fft-result]
-  (first
-   (reduce (fn [[best-freq best-mag] [freq mag]]
-             (if (> mag best-mag) [freq mag] [best-freq best-mag]))
-           (map-indexed vector fft-result))))
-
 ;; (defn graph-sine-wave-and-its-fft [n]
 ;;   (let [time-dom    (sine-wave n)
 ;;         freq-dom    (fft-of-sine-wave n)
@@ -69,7 +52,7 @@
                         (util/mean span-samples samples-per-span))
                       parted-samples) pcm-dat)
     (save-series (map (fn [span-samples]
-                        (* spans-per-second (dominant-frequency (fft-of-data span-samples))))
+                        (* spans-per-second (util/dominant-frequency (util/compute-fft span-samples))))
                       parted-samples) spectro-dat)))
 
 (def cmd
