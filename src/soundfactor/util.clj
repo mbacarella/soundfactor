@@ -5,11 +5,7 @@
   (:use [clojure.java.shell])
 )
 
-;; TODO: there must be standard lib versions of these
-
 (defn mean [xs n] (float (/ (reduce + xs) n)))
-
-(defn abs [n] (max n (- n)))
 
 (defn basename [path]
   (.getName (clojure.java.io/as-file path)))

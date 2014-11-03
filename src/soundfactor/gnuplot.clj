@@ -4,40 +4,6 @@
   (:require [soundfactor.command :as command])
 )
 
-;; (defn degrees-to-radians [degrees]
-;;   (/ (* Math/PI degrees) 180))
-
-;; (defn sine-wave [n]
-;;   (map (fn [x]
-;;          (* (-> (mod x 360) degrees-to-radians Math/sin) 32768))
-;;        (range n)))
-
-;; (defn fft-of-sine-wave [n]
-;;   (let [raw-wave (double-array (sine-wave n))
-;;         fft      (mikera.matrixx.algo.FFT. (int n))
-;;         tarr     (double-array (* n 2))]
-;;     (do
-;;       (System/arraycopy raw-wave 0 tarr 0 n)
-;;       (.realForward fft tarr)
-;;       tarr)))
-
-;; (defn graph-sine-wave-and-its-fft [n]
-;;   (let [time-dom    (sine-wave n)
-;;         freq-dom    (fft-of-sine-wave n)
-;;         save-series (fn [series path]
-;;                       (with-open [wr (clojure.java.io/writer path)]
-;;                         (doseq [[x y] (map-indexed vector series)]
-;;                           (.write wr (str x " " y "\n")))))]
-;;     (do
-;;       (save-series time-dom "/tmp/sine-wave.txt")
-;;       (save-series freq-dom "/tmp/sine-wave-fft.txt"))))
-
-;; (defn write-spectrogram-for-gnuplot [peak-frequencies spectro-path]
-;;   (with-open [writer (clojure.java.io/writer spectro-path)]
-;;     (.write writer "# time peak-frequency\n")
-;;     (doseq [[offset freq] peak-frequencies]
-;;       (.write writer (str offset " " freq "\n")))))
-
 (defn write-pcm-and-spectro-dat [sample-span input-mp3 pcm-dat spectro-dat]
   (let [time-series       (util/get-mp3-sample-data-mono input-mp3)
         hz                44100

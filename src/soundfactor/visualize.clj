@@ -11,12 +11,8 @@
 (import '(java.nio ByteBuffer ShortBuffer))
 (import '(javax.sound.sampled AudioFormat AudioSystem TargetDataLine))
 
-;; microphone input setup
-
 (def mic-input-format 
-  (new AudioFormat 44100 16 1 true true)
-  ; (new AudioFormat 44100 8 1 false true)
-)
+  (new AudioFormat 44100 16 1 true true))
 
 (def buffer-size 44100) ; why?
 
@@ -27,16 +23,16 @@
        (seq (. AudioSystem (getMixerInfo)))))
 
 (defn get-mixer-with-the-mic [] 
+  ;; the name to use was determined experimentally
   (first (filter (fn [m] (= (m :name) "default [default]")) (get-all-mixers))))
 
 (defn open-mic-input-line [mixer-info]
   (let [mic-mixer-info  (mixer-info :mixer-info)
         mic-mixer       (. AudioSystem (getMixer mic-mixer-info))
-        _sources        (seq (. mic-mixer (getSourceLineInfo))) ; sources are written to
+        ; _sources        (seq (. mic-mixer (getSourceLineInfo))) ; sources are written to
         targets         (seq (. mic-mixer (getTargetLineInfo))) ; targets are read from
         line-info       (first targets) ; more guessing
         mic-line        (. mic-mixer (getLine line-info))]
-    ; (. mic-line (open mic-input-format buffer-size))
     (.open #^TargetDataLine mic-line mic-input-format buffer-size)
     mic-line))
 
@@ -53,9 +49,6 @@
         screen-height     (q/height)
         samples-per-sec   30
         stroke-width      (/ screen-width samples-per-sec)]
-    ;; draw bars starting on the right edge at time, then walk left/backwards
-    ;; through time drawing history
-    ;(printf "time: %d\n" time) (flush)
     (q/background 0) ; clear screen
     (q/stroke-weight stroke-width)
     (q/stroke 255)
@@ -66,16 +59,13 @@
             m  (aget pcm-series i')
             h  (* (/ m 32768) screen-height)
             f  (aget spectro-series i')]
-        ;(printf "x: %d, h: %d, f: %d\n" (int x) (int h) (int f)) (flush)
         (q/stroke-float (if (> f 16000) 255 0)
                         (if (and (<= f 16000) (> f 4000)) 255 0)
                         (if (<= f 4000) 255 0))
         (q/line x y x (+ y (/ h 2)))))))
 
-(defn clamp-to-short [x]
-  (cond (> x 32767) 32767
-        (< x -32766) -32766
-        :else x))
+(defn clamp-to-short [x] 
+  (-> x (min 32767) (max -32766)))
 
 (defn tick [mic-line state]
   (let [sample-size-in-bytes 2
@@ -88,11 +78,6 @@
         bbyte                (. ByteBuffer (wrap buffer))
         bshort               (. bbyte (asShortBuffer))
         _ignored             (. bshort (get short-buffer))
-        ;; compute summary of sample data
-        ; mean                 (/ (apply + short-buffer) (alength short-buffer))
-        ;; let's try the min/max instead of the mean
-        ;; i suspect if we take the mean, higher frequency stuff regresses towards the
-        ;; mean and looks wimpy
         pcm-value            (let [min' (apply min short-buffer)
                                    max' (apply max short-buffer)]
                                (if (> (Math/abs (float min')) max') min' max'))
