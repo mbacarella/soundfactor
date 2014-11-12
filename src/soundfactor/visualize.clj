@@ -77,10 +77,11 @@
         bcount               (. mic-line (read buffer 0 buffer-size))
         bbyte                (. ByteBuffer (wrap buffer))
         bshort               (. bbyte (asShortBuffer))
-        _ignored             (. bshort (get short-buffer))
-        pcm-value            (let [min' (apply min short-buffer)
-                                   max' (apply max short-buffer)]
-                               (if (> (Math/abs (float min')) max') min' max'))
+        ; _ignored             (. bshort (get short-buffer))
+        pcm-value            (reduce (fn [acc x] (if (> (Math/abs (float x)) (Math/abs acc))
+                                                   (float x) acc))
+                                     (float 0)
+                                     short-buffer)
         fft                  (util/compute-fft short-buffer)
         spectro-value        (clamp-to-short (* (util/dominant-frequency fft) samples-per-second))]
     (swap! state (fn [[pcm-series spectro-series time]]

@@ -4,6 +4,15 @@
 (defn get-summary [command-or-group]
   ((apply hash-map (second command-or-group)) :summary))
 
+(defn pad-to [s n]
+  (apply str (cons s (map (fn [_x] " ") (range (- n (count s)))))))
+
+(defn print-as-table [alst]
+  (let [keyvals     (apply hash-map (flatten alst))
+        max-key-len (reduce max (map count (keys keyvals)))]
+    (doseq [key (sort (keys keyvals))]
+      (printf "  %s  %s\n" (pad-to key max-key-len) (keyvals key)))))
+
 (defn print-usage [command-or-group breadcrumbs]
   ; TODO: stderr
   (let [cmd-as-map (apply hash-map (second command-or-group))
@@ -25,8 +34,8 @@
                       (printf "\n")
                       (if (not (empty? subcommands))
                         (do (printf "___ subcommands ___\n\n")
-                            (doseq [[name sub-command] (cmd-as-map :subcommands)]
-                              (printf "  %s          %s\n" name (get-summary sub-command)))))
+                            (print-as-table (map (fn [[name sub-command]] [name (get-summary sub-command)])
+                                                 (cmd-as-map :subcommands)))))
                       (printf "\n")
                       (flush))
            :else (assert false "print-usage: did not get :command or :group"))))

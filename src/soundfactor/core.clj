@@ -75,17 +75,10 @@
 ;;           {}
 ;;           mp3-files))
 
-(def cmd-test (command/basic :summary "enjoy music with more parts of your brain"
-                             :spec [ (command/flag "-verbose" command/no-arg :doc "share more inner monologue")]
-                             :main (fn [verbose]
-                                     (printf "command.basic test\n")
-                                     (printf "verbose: %s\n" verbose)
-                                     (flush))))
 (defn -main [& args]
   (command/run
     args ; it sure would be nice if *command-line-args* worked
     (command/group "enjoy music with more parts of your brain"
-                   [["test" cmd-test]
-                    ["gnuplot" gnuplot/cmd]
+                   [["gnuplot" gnuplot/cmd]
                     ["quildemo" quildemo/cmd]
                     ["visualize" visualize/cmd]])))
