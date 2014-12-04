@@ -7,7 +7,7 @@
   (:require [soundfactor.quildemo :as quildemo])
   (:require [soundfactor.util :as util])
   (:require [soundfactor.visualize :as visualize])
-  (:require [soundfactor.freqdemo :as freqdemo]))
+  (:require [soundfactor.freqdom :as freqdom]))
 
 (defn -main [& args]
   (command/run
@@ -15,5 +15,5 @@
     (command/group "enjoy music with more parts of your brain"
                    [["gnuplot" gnuplot/cmd]
                     ["quildemo" quildemo/cmd]
-                    ["freqdemo" freqdemo/cmd]
+                    ["freqdom" freqdom/cmd]
                     ["visualize" visualize/cmd]])))
