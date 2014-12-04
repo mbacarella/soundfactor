@@ -1,13 +1,7 @@
-# audio-factor
+soundfactor
+===========
 
-FIXME: write description
+mostly just toys for pulling stuff out of sound files or
+the microphone and feeding them into a database and/or visualizer
 
-## Usage
-
-FIXME: write
-
-## License
-
-Copyright (C) 2011 FIXME
-
-Distributed under the Eclipse Public License, the same as Clojure.
+nothing really to see so far
