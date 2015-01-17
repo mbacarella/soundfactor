@@ -1,6 +1,7 @@
 (ns soundfactor.util
   (:import java.nio.ByteBuffer)
   (:import java.nio.ByteOrder)
+  (:import java.util.Date)
   (:use [clojure.java.io])
   (:use [clojure.java.shell])
 )
@@ -50,6 +51,9 @@
    (reduce (fn [[best-freq best-mag] [freq mag]]
              (if (> mag best-mag) [freq mag] [best-freq best-mag]))
            (map-indexed vector fft-result))))
+
+(defn millis-since-epoch []
+  (.getTime (Date.)))
 
 ;; (defn get-mp3-sample-data-native [mp3-file] 
 ;;   (try
