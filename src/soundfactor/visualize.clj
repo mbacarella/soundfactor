@@ -10,7 +10,7 @@
 (def frequency-range        22500)
 (def frame-rate                30)
 (def hz                      1500)  ; num of sound buckets per second
-(def samples-on-screen         50)
+(def samples-on-screen        100)
 
 (def total-draws (atom 0))
 (def millis-at-last-fps-print (atom (util/millis-since-epoch)))
@@ -31,8 +31,8 @@
   (let [[r g b]
         (reduce (fn [[r g b] [freq mag]]
                   (cond (< freq 2500)                        [(cons mag r) g b]
-                        (and (>= freq 2500) (< freq 12000))  [r (cons mag g) b]
-                        (>= freq 12000)                      [r g (cons mag b)]))
+                        (and (>= freq 2500) (< freq 12000))  [r g (cons mag b)]
+                        (>= freq 12000)                      [r (cons mag g) b]))
                 [[] [] []]
                 (map-indexed (fn [freq mag] [(* freq hz) 
                                              (max 0 (/ mag max-freq-mag))]) freqs))]
@@ -94,7 +94,7 @@
         bbyte                (. ByteBuffer (wrap buffer))
         bshort               (. bbyte (asShortBuffer))
         _ignored             (. bshort (get short-buffer))
-        ^doubles pcm-value   (reduce (fn [a x] (if (> (Math/abs a) (Math/abs (float x))) a (float x)))
+        pcm-value            (reduce (fn [a x] (if (> (Math/abs a) (Math/abs (float x))) a (float x)))
                                      (float 0)
                                      short-buffer)
         fft                  (util/compute-fft short-buffer)]
