@@ -7,6 +7,7 @@
 (import '(java.nio ByteBuffer ShortBuffer))
 
 (def frequency-range 22500)
+(def frame-rate 30)
 (def samples-per-second 100)
 
 ;; frequency buckets:
@@ -38,25 +39,30 @@
         screen-width      (q/width)
         screen-height     (q/height)
         samples-per-sec   30
-        stroke-width      (/ screen-width samples-per-sec)]
+        stroke-width      (/ screen-width samples-per-sec)
+        start-i           time
+        end-i             (- time samples-per-sec)]
     (q/background 0) ; clear screen
     (q/stroke-weight stroke-width)
     (q/stroke 255)
-    (doseq [i  (range time (- time samples-per-sec) -1)]
+    (loop [i     start-i
+           prev  nil]
       (let [i' (mod i (alength pcm-series))
-            x  (* stroke-width (- samples-per-sec (- time i)))
-            y  (/ screen-height 2)
             m  (aget pcm-series i')
             h  (* (/ m 32768) screen-height)
+            x  (* stroke-width (- samples-per-sec (- time i)))
+            y  (+ (/ screen-height 2) (/ h 2))
             f  (aget freq-series i')
             [r g b] (project-freqs-into-rgb f max-freq-mag)]
-        (printf "r: %d, g: %d, b: %d\n" r g b) (flush)
-        (q/stroke r g b)
-        (q/line x y x (+ y (/ h 2)))))))
+        (if (= i end-i) () ; end loop
+            (do (if (not (nil? prev))
+                  (let [[prev_x prev_y] prev]
+                    (q/stroke r g b)
+                    (q/line prev_x prev_y x y)))
+                (recur (- i 1) [x y])))))))
 
 (defn clamp-to-short [x] 
   (-> x (min 32767) (max -32766)))
-
 
 (defn tick [mic-line state]
   (let [sample-size-in-bytes 2
@@ -96,7 +102,7 @@
       :title "visualize"
       :setup (fn []
                (q/smooth)
-               (q/frame-rate 24)
+               (q/frame-rate frame-rate)
                (q/background 0))
       :draw (partial draw state)
       :size [800 600])))
