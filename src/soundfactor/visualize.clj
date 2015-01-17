@@ -6,10 +6,11 @@
 
 (import '(java.nio ByteBuffer ShortBuffer))
 
-(def frequency-range  22500)
-(def frame-rate          30)
-(def hz                1000)  ; num of sound buckets per second
-(def samples-on-screen   50)
+(def screen-dimensions [1366 768])
+(def frequency-range        22500)
+(def frame-rate                30)
+(def hz                      1500)  ; num of sound buckets per second
+(def samples-on-screen         50)
 
 (def total-draws (atom 0))
 (def millis-at-last-fps-print (atom (util/millis-since-epoch)))
@@ -124,7 +125,7 @@
                (q/frame-rate frame-rate)
                (q/background 0))
       :draw (partial draw state)
-      :size [800 600])))
+      :size screen-dimensions)))
 
 (def cmd 
   (command/basic :summary "visualize"
