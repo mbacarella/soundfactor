@@ -7,13 +7,13 @@
   (:require [soundfactor.quildemo :as quildemo])
   (:require [soundfactor.util :as util])
   (:require [soundfactor.visualize :as visualize])
-  (:require [soundfactor.freqdom :as freqdom]))
+  (:require [soundfactor.freqdom :as freqdom])
+)
 
 (defn -main [& args]
   (command/run
     args ; it sure would be nice if *command-line-args* worked
     (command/group "enjoy music with more parts of your brain"
                    [["gnuplot" gnuplot/cmd]
-                    ["quildemo" quildemo/cmd]
                     ["freqdom" freqdom/cmd]
                     ["visualize" visualize/cmd]])))
