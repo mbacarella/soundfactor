@@ -1,5 +1,5 @@
 (defproject soundfactor "1.0"
-  :description "soundfactor: find duplicate and near-duplicate mp3s"
+  :description "soundfactor: enjoy music with more parts of your brain"
   :main soundfactor.core
   :aot [soundfactor.core]
   :shell-wrapper true
