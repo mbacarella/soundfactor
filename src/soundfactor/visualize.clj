@@ -2,9 +2,9 @@
   (:require [quil.core :as q])
   (:require [soundfactor.command :as command])
   (:require [soundfactor.util :as util])
-  (:require [soundfactor.mic :as mic]))
-
-(import '(java.nio ByteBuffer ShortBuffer))
+  (:require [soundfactor.mic :as mic])
+  (:import [java.nio ByteBuffer ShortBuffer])
+)
 
 (def screen-dimensions [1366 768])
 (def frequency-range        22500)

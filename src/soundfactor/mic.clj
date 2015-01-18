@@ -1,8 +1,7 @@
-(ns soundfactor.mic)
-
-;; htf do i rewrite this as a :require
-(import '(java.nio ByteBuffer ShortBuffer))
-(import '(javax.sound.sampled AudioFormat AudioSystem TargetDataLine))
+(ns soundfactor.mic
+  (:import [java.nio ByteBuffer ShortBuffer])
+  (:import [javax.sound.sampled AudioFormat AudioSystem TargetDataLine])
+)
 
 (def mic-input-format 
   (new AudioFormat 44100 16 1 true true))

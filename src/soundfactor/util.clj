@@ -1,6 +1,5 @@
 (ns soundfactor.util
-  (:import java.nio.ByteBuffer)
-  (:import java.nio.ByteOrder)
+  (:import [java.nio ByteBuffer ByteOrder])
   (:import java.util.Date)
   (:use [clojure.java.io])
   (:use [clojure.java.shell])
