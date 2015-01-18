@@ -30,15 +30,19 @@
 (defn project-freqs-into-rgb [freqs max-freq-mag]
   (let [[r g b]
         (reduce (fn [[r g b] [freq mag]]
-                  (cond (< freq 2500)                        [(cons mag r) g b]
+                  (cond (< freq 2500)                        [r (cons mag g) b]
                         (and (>= freq 2500) (< freq 12000))  [r g (cons mag b)]
-                        (>= freq 12000)                      [r (cons mag g) b]))
+                        (>= freq 12000)                      [(cons mag r) g b]))
                 [[] [] []]
                 (map-indexed (fn [freq mag] [(* freq hz) 
-                                             (max 0 (/ mag max-freq-mag))]) freqs))]
-    [(crunch r)
-     (crunch g) 
-     (crunch b)]))
+                                             (max 0 (/ mag max-freq-mag))]) freqs))
+        crunch-r (crunch r)
+        crunch-g (crunch g)
+        crunch-b (crunch b)]
+    (cond (>= crunch-r crunch-g crunch-b) [crunch-r 0 0]
+          (>= crunch-g crunch-r crunch-b) [0 crunch-g 0]
+          (>= crunch-b crunch-r crunch-g) [0 0 crunch-b]
+          :else [255 0 255])))
 
 (defn maybe-print-fps []
   (swap! total-draws inc)
