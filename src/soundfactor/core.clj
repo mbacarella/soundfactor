@@ -4,7 +4,6 @@
   (:use [clojure.java.shell])
   (:require [soundfactor.command :as command])
   (:require [soundfactor.gnuplot :as gnuplot])
-  (:require [soundfactor.quildemo :as quildemo])
   (:require [soundfactor.util :as util])
   (:require [soundfactor.visualize :as visualize])
   (:require [soundfactor.freqdom :as freqdom])
