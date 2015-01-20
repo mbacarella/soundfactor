@@ -37,7 +37,7 @@
           bbyte                (. ByteBuffer (wrap buffer))
           bshort               (. bbyte (asShortBuffer))
           _ignored             (. bshort (get short-buffer))
-          fft                  (util/compute-fft short-buffer)]
+          fft                  (util/fft (double-array short-buffer))]
       (swap! state (fn [[max-y prev-fft]] 
                      (printf "tick! bcount: %d\n" bcount) (flush) 
                      [(max max-y (reduce max fft)) fft])))

@@ -2,31 +2,27 @@
 ;; https://www.clear.rice.edu/elec301/Projects01/beat_sync/beatalgo.html
 (ns soundfactor.beat-this
   (:gen-class)
+  (:import [soundfactor.util :as util])
 )
 
-(def band-limits [0 200 400 800 1600 3200])
+(def band-limits (apply vector [0 200 400 800 1600 3200]))
+(def nbands      (count band-limits))
 (def max-freq    4096)
+(def floor       Math/floor)
 
 (defn filter-bank [time-series]
   (let [data   (double-array time-series)
         n      (count data)
-        dft    (do (let [fft  (mikera.matrixx.algo.FFT. (int n))
-                         tarr (double-array (* n 2))]
-                     (System/arraycopy data 0 tarr 0 n)
-                     (.realForward fft tarr)
-                     tarr))
-        floor  (Math/floor)
-        nbands (count band-limits)
+        dft    (util/fft data)  
         ;; bring band scale from Hz to the points in our vectors
-        bl     (conj (map (fn [i] (inc (floor (/ (aget band-limits i) (* max-freq n) 2))))
+        bl     (conj (map (fn [i] (inc (floor (/ (get band-limits i) (* max-freq n) 2))))
                           (range (dec n)))
-                     (floor (inc (/ (aget band-limits (dec nbands)) (* max-freq n) 2))))
-        br     (conj (map (fn [i]  (floor (/ (aget band-limits (inc i)) (* max-freq n) 2)))
+                     (floor (inc (/ (get band-limits (dec nbands)) (* max-freq n) 2))))
+        br     (conj (map (fn [i]  (floor (/ (get band-limits (inc i)) (* max-freq n) 2)))
                           (range (dec n)))
                      (floor (/ n 2)))
         output (zeroes n nbands)
-        ]
     ;; create the frequency bands and put them in the vector output
     
 
-))
+)))

@@ -101,7 +101,7 @@
         pcm-value            (reduce (fn [a x] (if (> (Math/abs a) (Math/abs (float x))) a (float x)))
                                      (float 0)
                                      short-buffer)
-        fft                  (util/compute-fft short-buffer)]
+        fft                  (util/fft (double-array short-buffer))]
     (swap! state (fn [[pcm-series freq-series time max-freq-mag]]
                    ;; this isn't actually an atomic update because series is a mutable array
                    ;; but it probably doesn't matter because we're using it as a circular buffer

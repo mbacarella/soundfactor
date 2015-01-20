@@ -18,7 +18,7 @@
                         (util/mean span-samples samples-per-span))
                       parted-samples) pcm-dat)
     (save-series (map (fn [span-samples]
-                        (* spans-per-second (util/dominant-frequency (util/compute-fft span-samples))))
+                        (* spans-per-second (util/dominant-frequency (util/fft span-samples))))
                       parted-samples) spectro-dat)))
 
 (def cmd
