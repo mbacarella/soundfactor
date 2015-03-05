@@ -5,6 +5,8 @@
   (:import [soundfactor.util :as util])
 )
 
+(def fft util/fft)
+
 (defn array-init [len f]
   (float-array len (map f (range len))))
 
@@ -18,9 +20,6 @@
   (doseq [i (range (- last-row first-row))]
     (let [index (+ col (* (+ first-row i) (:columns matrix)))]
       (aset (:array matrix) index (aget data i)))))
-   
-(defn slice [array start end]
-  (subvec array start end))
 
 (def bandlimits 
   (let [bandlimits [0 200 400 800 1600 3200]]
@@ -29,15 +28,16 @@
 (def floor Math/floor)
 (def nbands (count bandlimits))
 
+;; --- FILTER BANK ---
+
 (defn filter-bank [sig]
   (let [dft        (fft sig)
         n          (count dft)
-        nbands     (count bandlimits)
         ;; bring band scale from Hz to the points in our vectors
         bl         (array-init nbands (fn [i] (inc (floor (/ (* (/ (aget bandlimits i) maxfreq) n))))))
         br         (array-init nbands (fn [i] (if (= (dec nbands)) (floor (/ n 2))
-                                                  (floor (/ (* (/ (aget bandlimits (inc i)) maxfreq) n) 2)]))
-        output     (matrix-new n nbands))]
+                                                  (floor (/ (* (/ (aget bandlimits (inc i)) maxfreq) n) 2)))))
+        matrix     (matrix-new n nbands)]
     (doseq [i (range nbands)]
       (let [bl_i (aget bl i)
             br_i (aget br i)
@@ -45,8 +45,10 @@
             np1  (inc n)
             np1_m_br_i (- np1 br_i)
             np1_m_bl_i (- np1 bl_i)]
-        (matrix-splice output bl_i br_i i (slice dft bl_i br_i))
-        (matrix-splice output np1_m_br_i np1_m_bl_i i (slice dft np1_br_i np1_m_bl_i))))
+        ;; output(bl(i):br(i),i) = dft(bl(i):br(i));                                                                                       
+        (matrix-splice matrix bl_i br_i i (subvec dft bl_i br_i))
+        ;; output(n+1-br(i):n+1-bl(i),i) = dft(n+1-br(i):n+1-bl(i));                                                                       
+        (matrix-splice matrix np1_m_br_i np1_m_bl_i i (subvec dft np1_m_br_i np1_m_bl_i))))
     (aset (:array matrix) 0 0)
     matrix))
 
