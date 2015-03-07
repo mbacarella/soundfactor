@@ -5,8 +5,6 @@
   (:require [soundfactor.util :as util])
   )
 
-(defn floor [x] (Math/floor x))
-
 (def fft util/fft)
 
 (defn array-init [len f]
@@ -42,9 +40,9 @@
   (let [dft        (fft sig)
         n          (count sig)
         ;; bring band scale from Hz to the points in our vectors
-        bl         (array-init nbands (fn [i] (inc (floor (/ (* (/ (aget bandlimits i) maxfreq) n))))))
-        br         (array-init nbands (fn [i] (if (= (dec nbands)) (floor (/ n 2))
-                                                  (floor (/ (* (/ (aget bandlimits (inc i)) maxfreq) n) 2)))))
+        bl         (array-init nbands (fn [i] (inc (Math/floor (/ (* (/ (aget bandlimits i) maxfreq) n))))))
+        br         (array-init nbands (fn [i] (if (= (dec nbands)) (Math/floor (/ n 2))
+                                                  (Math/floor (/ (* (/ (aget bandlimits (inc i)) maxfreq) n) 2)))))
         matrix     (matrix-new n nbands)]
     (doseq [i (range nbands)]
       (let [bl_i (aget bl i)
@@ -61,15 +59,19 @@
     matrix))
 
 ;; --- HWINDOW ---  
-  
+
+
 ;; TODO: understand what this all means  
 ;; what's a hanning window?  
 ;; what's a half-hanning window?  
 ;; why take the fourier transform of it?  
+(def winlength 0.4)  ;; seconds
+(def hannlen (* winlength 2 maxfreq))
+
 (defn hwindow [fdsig]  
   (let [n        (count fdsig)  
-        ;; Create half-Hanning window  
-        hann     (array-init hannlen (fn [a] (Math/pow (cos (/ (* a pi) hannlen 2)) 2)))  
+        ;; Create half-Hanning window
+        hann     (array-init hannlen (fn [a] (Math/pow (Math/cos (/ (* a pi) hannlen 2)) 2)))  
         hann-dft (fft hann)  
         wave     (matrix-new n nbands)  
         freq     (matrix-new n nbands)  
@@ -126,7 +128,7 @@
       (matrix-splice dft 0 n i (fft (matrix-column sig i))))
     ;; initialize max energy to zero
     (doseq [bpm (range minbpm maxbpm acc)]
-      (let [nstep   (floor (* (/ 120 bpm) maxfreq))
+      (let [nstep   (Math/floor (* (/ 120 bpm) maxfreq))
             ;; set every nstep samples of the filter to 1
             fil     (array-init n (fn [i] (if (= i (* a nstep)) 1 0)))
             ;; get the filter in the frequency domain

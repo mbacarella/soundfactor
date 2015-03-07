@@ -43,6 +43,14 @@
     (.realForward fft tarr)
     tarr))
 
+(defn ifft [#^doubles sig]
+  (let [n    (count sig)
+        fft  (mikera.matrixx.algo.FFT. (int n))
+        tarr (double-array (* n 2))]
+    (System/arraycopy sig 0 tarr 0 n)
+    (.realInverse fft tarr)
+    tarr))
+
 (defn dominant-frequency [fft-result]
   (first
    (reduce (fn [[best-freq best-mag] [freq mag]]
