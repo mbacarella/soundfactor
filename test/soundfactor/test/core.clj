@@ -1,13 +1,16 @@
 (ns soundfactor.test.core
   (:use [soundfactor.core])
-  (:use [soundfactor.util])
+  (:require [soundfactor.util :as util])
+  (:require [soundfactor.beat-this :as beat-this])
   (:use [clojure.test]))
 
-(defn chop4 [x]
-  "Chop to 4 decimal places"
-  (/ (Math/floor (* x 10000)) 10000))
-
 (deftest test-utils
-  (is (= (chop4 (degrees-to-radians 0 )) 0.0))
-  (is (= (chop4 (degrees-to-radians 360)) 6.2831))
-  (is (= (chop4 (degrees-to-radians 200)) 3.4906)))
+  ;; the array returned by fft is 2x the size of sig (the second half is junk)
+  (let [sig (double-array 100 (range))
+        fft (util/fft sig)]
+    (is (= (count sig) (/ (count fft) 2)))))
+
+(deftest test-beat-this-filter-bank
+  (let [sig    (double-array 100 (range))
+        matrix (beat-this/filter-bank sig)]
+    (is (= (count (:rows matrix)) beat-this/nbands))))

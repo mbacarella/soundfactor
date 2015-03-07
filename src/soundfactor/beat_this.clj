@@ -10,6 +10,8 @@
 (defn array-init [len f]
   (float-array len (map f (range len))))
 
+;; move these into util
+
 (defrecord CrappyMatrix [rows columns array])
 
 (defn matrix-new [rows columns]
@@ -32,7 +34,7 @@
 
 (defn filter-bank [sig]
   (let [dft        (fft sig)
-        n          (count dft)
+        n          (count sig)
         ;; bring band scale from Hz to the points in our vectors
         bl         (array-init nbands (fn [i] (inc (floor (/ (* (/ (aget bandlimits i) maxfreq) n))))))
         br         (array-init nbands (fn [i] (if (= (dec nbands)) (floor (/ n 2))
@@ -45,9 +47,9 @@
             np1  (inc n)
             np1_m_br_i (- np1 br_i)
             np1_m_bl_i (- np1 bl_i)]
-        ;; output(bl(i):br(i),i) = dft(bl(i):br(i));                                                                                       
+        ;; output(bl(i):br(i),i) = dft(bl(i):br(i));
         (matrix-splice matrix bl_i br_i i (subvec dft bl_i br_i))
-        ;; output(n+1-br(i):n+1-bl(i),i) = dft(n+1-br(i):n+1-bl(i));                                                                       
+        ;; output(n+1-br(i):n+1-bl(i),i) = dft(n+1-br(i):n+1-bl(i));
         (matrix-splice matrix np1_m_br_i np1_m_bl_i i (subvec dft np1_m_br_i np1_m_bl_i))))
     (aset (:array matrix) 0 0)
     matrix))
