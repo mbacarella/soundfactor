@@ -2,32 +2,38 @@
 ;; https://www.clear.rice.edu/elec301/Projects01/beat_sync/beatalgo.html
 (ns soundfactor.beat-this
   (:gen-class)
-  (:import [soundfactor.util :as util])
-)
+  (:require [soundfactor.util :as util])
+  )
+
+(defn floor [x] (Math/floor x))
 
 (def fft util/fft)
 
 (defn array-init [len f]
   (float-array len (map f (range len))))
 
-;; move these into util
+;; -- begin matrix functions --
 
 (defrecord CrappyMatrix [rows columns array])
 
 (defn matrix-new [rows columns]
   (CrappyMatrix. rows columns (float-array (* rows columns) 0)))
 
-;; XXX: test me
 (defn matrix-splice [matrix first-row last-row col data]
   (doseq [i (range (- last-row first-row))]
     (let [index (+ col (* (+ first-row i) (:columns matrix)))]
       (aset (:array matrix) index (aget data i)))))
 
+(defn matrix-column [matrix col]
+  (for [i (range (:rows matrix))]
+    (aget (:array matrix) (+ col (* i (:columns matrix))))))
+
+;; -- end matrix functions --
+
 (def bandlimits 
   (let [bandlimits [0 200 400 800 1600 3200]]
     (int-array (count bandlimits) bandlimits)))
 (def maxfreq 4096)
-(def floor Math/floor)
 (def nbands (count bandlimits))
 
 ;; --- FILTER BANK ---
