@@ -6,6 +6,7 @@
   )
 
 (def fft util/fft)
+(def ifft util/ifft)
 
 (defn array-init [len f]
   (float-array len (map f (range len))))
@@ -17,14 +18,24 @@
 (defn matrix-new [rows columns]
   (CrappyMatrix. rows columns (float-array (* rows columns) 0)))
 
+;; XXX: test me
 (defn matrix-splice [matrix first-row last-row col data]
   (doseq [i (range (- last-row first-row))]
     (let [index (+ col (* (+ first-row i) (:columns matrix)))]
       (aset (:array matrix) index (aget data i)))))
 
+;; XXX: test me
 (defn matrix-column [matrix col]
   (for [i (range (:rows matrix))]
     (aget (:array matrix) (+ col (* i (:columns matrix))))))
+
+;; XXX: test me
+(defn matrix-get [matrix row col]
+  (aget (:array matrix) (+ col (* row (:columns matrix)))))
+
+;; XXX: test me
+(defn matrix-set [matrix row col val]
+  (aset (:array matrix) (+ col (* row (:columns matrix))) val))
 
 ;; -- end matrix functions --
 
@@ -40,9 +51,9 @@
   (let [dft        (fft sig)
         n          (count sig)
         ;; bring band scale from Hz to the points in our vectors
-        bl         (array-init nbands (fn [i] (inc (Math/floor (/ (* (/ (aget bandlimits i) maxfreq) n))))))
+        bl         (array-init nbands (fn [i] (inc (Math/floor (/ (* (/ (aget bandlimits i) maxfreq) n) 2)))))
         br         (array-init nbands (fn [i] (if (= (dec nbands)) (Math/floor (/ n 2))
-                                                  (Math/floor (/ (* (/ (aget bandlimits (inc i)) maxfreq) n) 2)))))
+                                                  (Math/floor  (/ (* (/ (aget bandlimits (inc i)) maxfreq) n) 2)))))
         matrix     (matrix-new n nbands)]
     (doseq [i (range nbands)]
       (let [bl_i (aget bl i)
@@ -71,12 +82,14 @@
 (defn hwindow [fdsig]  
   (let [n        (count fdsig)  
         ;; Create half-Hanning window
-        hann     (array-init hannlen (fn [a] (Math/pow (Math/cos (/ (* a pi) hannlen 2)) 2)))  
+        hann     (array-init hannlen (fn [a] (Math/pow (Math/cos (/ (* a Math/PI) hannlen 2)) 2)))  
         hann-dft (fft hann)  
         wave     (matrix-new n nbands)  
         freq     (matrix-new n nbands)  
-        output   (matrix-new n nbands)]  
-    ;; take IFFT to transform to time domain  
+        output   (matrix-new n nbands)
+        real     (fn [x] x) ; the ifft function already returns reals?
+        ]  
+    ;; take IFFT to transform to time domain
     (doseq [i (range nbands)]  
       (matrix-splice wave 0 n i (map real (map ifft (matrix-column fdsig i)))))  
     ;; Full-wave rectification in the time domain  
@@ -115,11 +128,10 @@
 
 (defn convolve-one-band [dftfil dft]
   ;;  x = sum((abs(dftfil.*dft(:,i))).^2)
-  (apply + (map (fn [a b] (pow (abs (* a b))) 2) dftfil dft)))
+  (apply + (map (fn [a b] (Math/pow (Math/abs (* a b)) 2)) dftfil dft)))
 
 (defn timecomb [sig acc]
   (let [n          (count sig)
-        npulses    3  ; number of pulses in the comb filter
         dft        (matrix-new n nbands)
         sbpm-maxe  (atom [-1 0]) ; initialize max energy to zero
         ]
@@ -129,8 +141,11 @@
     ;; initialize max energy to zero
     (doseq [bpm (range minbpm maxbpm acc)]
       (let [nstep   (Math/floor (* (/ 120 bpm) maxfreq))
-            ;; set every nstep samples of the filter to 1
-            fil     (array-init n (fn [i] (if (= i (* a nstep)) 1 0)))
+            ;; the cond below corresponds to a hard-coded 3 pulses in the comb filter
+            fil     (array-init n (fn [i] (if (or (= i 0)
+                                                  (= i nstep)
+                                                  (= i (* nstep 2))) 1
+                                                  0)))
             ;; get the filter in the frequency domain
             dftfil  (fft fil)
             ;; calculate the energy after convolution

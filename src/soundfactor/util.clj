@@ -35,6 +35,7 @@
         (.get short-buffer my-short-array)
         my-short-array))))
 
+;; XXX: factor out fft and ifft
 (defn fft [#^doubles sig]
   (let [n    (count sig)
         fft  (mikera.matrixx.algo.FFT. (int n))
