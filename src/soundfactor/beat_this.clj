@@ -11,6 +11,12 @@
 (defn array-init [len f]
   (float-array len (map f (range len))))
 
+;; XXX: you can't use subvec on arrays!?
+;; XXX: you can't take efficient sub-arrays of arrays?!
+(defn array-slice [a start end]
+  (let [len (- end start)]
+    (array-init len (fn [i] (aget a (+ start i))))))
+
 ;; -- begin matrix functions --
 
 (defrecord CrappyMatrix [rows columns array])
@@ -63,10 +69,10 @@
             np1_m_br_i (- np1 br_i)
             np1_m_bl_i (- np1 bl_i)]
         ;; output(bl(i):br(i),i) = dft(bl(i):br(i));
-        (matrix-splice matrix bl_i br_i i (subvec dft bl_i br_i))
+        (matrix-splice matrix bl_i br_i i (array-slice dft bl_i br_i))
         ;; output(n+1-br(i):n+1-bl(i),i) = dft(n+1-br(i):n+1-bl(i));
-        (matrix-splice matrix np1_m_br_i np1_m_bl_i i (subvec dft np1_m_br_i np1_m_bl_i))))
-    (aset (:array matrix) 0 0)
+        (matrix-splice matrix np1_m_br_i np1_m_bl_i i (array-slice dft np1_m_br_i np1_m_bl_i))))
+    (aset (:array matrix) 0 0.0)
     matrix))
 
 ;; --- HWINDOW ---  
