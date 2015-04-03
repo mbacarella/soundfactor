@@ -9,7 +9,7 @@
 (def ifft util/ifft)
 
 (defn array-init [len f]
-  (float-array len (map f (range len))))
+  (double-array len (map f (range len))))
 
 ;; XXX: you can't use subvec on arrays!?
 ;; XXX: you can't take efficient sub-arrays of arrays?!
@@ -22,18 +22,18 @@
 (defrecord CrappyMatrix [rows columns array])
 
 (defn matrix-new [rows columns]
-  (CrappyMatrix. rows columns (float-array (* rows columns) 0)))
+  (CrappyMatrix. rows columns (double-array (* rows columns) 0)))
 
 ;; XXX: test me
 (defn matrix-splice [matrix first-row last-row col data]
   (doseq [i (range (- last-row first-row))]
     (let [index (+ col (* (+ first-row i) (:columns matrix)))]
-      (aset (:array matrix) index (aget data i)))))
+      (aset-double (:array matrix) index (aget data i)))))
 
 ;; XXX: test me
 (defn matrix-column [matrix col]
-  (for [i (range (:rows matrix))]
-    (aget (:array matrix) (+ col (* i (:columns matrix))))))
+  (double-array (for [i (range (:rows matrix))]
+                  (aget (:array matrix) (+ col (* i (:columns matrix)))))))
 
 ;; XXX: test me
 (defn matrix-get [matrix row col]
@@ -41,7 +41,7 @@
 
 ;; XXX: test me
 (defn matrix-set [matrix row col val]
-  (aset (:array matrix) (+ col (* row (:columns matrix))) val))
+  (aset-double (:array matrix) (+ col (* row (:columns matrix))) val))
 
 ;; -- end matrix functions --
 
@@ -72,11 +72,10 @@
         (matrix-splice matrix bl_i br_i i (array-slice dft bl_i br_i))
         ;; output(n+1-br(i):n+1-bl(i),i) = dft(n+1-br(i):n+1-bl(i));
         (matrix-splice matrix np1_m_br_i np1_m_bl_i i (array-slice dft np1_m_br_i np1_m_bl_i))))
-    (aset (:array matrix) 0 0.0)
+    (aset-double (:array matrix) 0 0.0)
     matrix))
 
 ;; --- HWINDOW ---  
-
 
 ;; TODO: understand what this all means  
 ;; what's a hanning window?  
@@ -85,33 +84,32 @@
 (def winlength 0.4)  ;; seconds
 (def hannlen (* winlength 2 maxfreq))
 
-(defn hwindow [fdsig]  
-  (let [n        (count fdsig)  
+(defn hwindow [fdsig]
+  (let [n        (count fdsig)
         ;; Create half-Hanning window
-        hann     (array-init hannlen (fn [a] (Math/pow (Math/cos (/ (* a Math/PI) hannlen 2)) 2)))  
-        hann-dft (fft hann)  
-        wave     (matrix-new n nbands)  
-        freq     (matrix-new n nbands)  
+        hann     (array-init hannlen (fn [a] (Math/pow (Math/cos (/ (* a Math/PI) hannlen 2)) 2)))
+        hann-dft (fft hann)
+        wave     (matrix-new n nbands)
+        freq     (matrix-new n nbands)
         output   (matrix-new n nbands)
-        real     (fn [x] x) ; the ifft function already returns reals?
         ]  
     ;; take IFFT to transform to time domain
-    (doseq [i (range nbands)]  
-      (matrix-splice wave 0 n i (map real (map ifft (matrix-column fdsig i)))))  
-    ;; Full-wave rectification in the time domain  
-    ;; And back to frequency with FFT.  
-    (doseq [i (range nbands)]  
-      (doseq [j (range n)]  
-        (let [wave_j_i (matrix-get wave j i)]  
-          (if (< wave_j_i 0)  
+    (doseq [i (range nbands)]
+      (matrix-splice wave 0 n i (double-array (ifft (matrix-column fdsig i)))))
+    ;; Full-wave rectification in the time domain
+    ;; And back to frequency with FFT.
+    (doseq [i (range nbands)]
+      (doseq [j (range n)]
+        (let [wave_j_i (matrix-get wave j i)]
+          (if (< wave_j_i 0)
             (matrix-set wave j i (- wave_j_i)))))
-      (matrix-splice freq 0 n (fft (matrix-column wave i))))
+      (matrix-splice freq 0 n i (fft (matrix-column wave i))))
     ;; Convolving with half-Hanning same as multiplying in frequency.
     ;; Multiply half-Hanning FFT by signal FFT.  Inverse transform
     ;; to get output in the time domain.
     (doseq [i (range nbands)]
-      (let [filtered (map * (matrix-column freq i) hann-dft)]
-        (matrix-splice output 0 n i (real (ifft filtered)))))
+      (let [filtered (double-array (map * (matrix-column freq i) hann-dft))]
+        (matrix-splice output 0 n i (ifft filtered))))
     output))
 
 ;; --- DIFFRECT ---

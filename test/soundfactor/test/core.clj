@@ -15,5 +15,11 @@
 
 (deftest test-beat-this-filter-bank
   (let [sig    (double-array 100 (range))
-        matrix (beat-this/filter-bank sig)]
-    (is (= (count (:rows matrix)) beat-this/nbands))))
+        fdsig  (beat-this/filter-bank sig)]
+    (is (= (:columns fdsig) beat-this/nbands))))
+
+(deftest test-beat-this-hwindow
+  (let [sig    (double-array 100 (range))
+        fdsig  (beat-this/filter-bank sig)
+        hwin   (beat-this/hwindow fdsig)]
+    (is (= (:columns hwin) beat-this/nbands))))

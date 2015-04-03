@@ -49,7 +49,7 @@
         fft  (mikera.matrixx.algo.FFT. (int n))
         tarr (double-array (* n 2))]
     (System/arraycopy sig 0 tarr 0 n)
-    (.realInverse fft tarr)
+    (.realInverse fft tarr false) ; the boolean is whether or not we want scaling
     tarr))
 
 (defn dominant-frequency [fft-result]
