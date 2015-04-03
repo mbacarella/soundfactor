@@ -60,38 +60,3 @@
 
 (defn millis-since-epoch []
   (.getTime (Date.)))
-
-;; (defn get-mp3-sample-data-native [mp3-file] 
-;;   (try
-;;     (let [file-object      (File. mp3-file)
-;;           audio-in         (AudioSystem/getAudioInputStream file-object)
-;;           base-format      (.getFormat audio-in)
-;;           decoded-format   (let [channels    (.getChannels base-format)
-;;                                  sample-rate (.getSampleRate base-format)]
-;;                              (AudioFormat. AudioFormat$Encoding/PCM_SIGNED  ; encoding
-;;                                            sample-rate    ; sample rate of base format 
-;;                                            16             ; sample size in bits
-;;                                            channels
-;;                                            (* channels 2) ; frame size
-;;                                            sample-rate    ; frame rate
-;;                                            false          ; big endian
-;;                                            ))
-;;           line-info        (DataLine$Info. SourceDataLine decoded-format)
-;;           decoded-stream   (AudioSystem/getAudioInputStream decoded-format audio-in)
-;;           read-buffer      (byte-array 8192)
-;;           ba-output-stream (ByteArrayOutputStream.)
-;;           moar-data        (fn [] (.read decoded-stream read-buffer))]
-;;       (loop [num-bytes (moar-data)]
-;;         (if (> num-bytes 0)
-;;           (do (.write ba-output-stream read-buffer 0 num-bytes)
-;;               (recur (moar-data)))
-;;           (let [total-bytes    (.size ba-output-stream)
-;;                 num-samples    (/ total-bytes 2)
-;;                 byte-buffer    (ByteBuffer/wrap (.toByteArray ba-output-stream) 0 total-bytes)
-;;                 short-buffer   (.asShortBuffer byte-buffer)
-;;                 my-short-array (short-array num-samples)]
-;;             (do (.get short-buffer my-short-array 0 num-samples)
-;;                 (.close decoded-stream)
-;;                 (.close audio-in)
-;;                 my-short-array)))))
-;;     (catch Exception _e nil)))
