@@ -49,22 +49,6 @@
 (defn ifft [#^doubles sig]
   (fft-or-ifft sig (fn [fft tarr] (.realInverse fft tarr false))))
 
-;; (defn fft [#^doubles sig]
-;;   (let [n    (count sig)
-;;         fft  (mikera.matrixx.algo.FFT. (int n))
-;;         tarr (double-array (* n 2))]
-;;     (System/arraycopy sig 0 tarr 0 n)
-;;     (.realForward fft tarr)
-;;     tarr))
-
-;; (defn ifft [#^doubles sig]
-;;   (let [n    (count sig)
-;;         fft  (mikera.matrixx.algo.FFT. (int n))
-;;         tarr (double-array (* n 2))]
-;;     (System/arraycopy sig 0 tarr 0 n)
-;;     (.realInverse fft tarr false) ; the boolean is whether or not we want scaling
-;;     tarr))
-
 (defn dominant-frequency [fft-result]
   (first
    (reduce (fn [[best-freq best-mag] [freq mag]]
